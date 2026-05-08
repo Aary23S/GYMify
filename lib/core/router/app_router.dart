@@ -7,6 +7,11 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/otp_verify_screen.dart';
 import '../../features/dashboard/screens/main_shell.dart';
 import '../../features/members/screens/add_member_screen.dart';
+import '../../features/members/screens/members_list_screen.dart';
+import '../../features/members/screens/member_profile_screen.dart';
+import '../../features/attendance/screens/attendance_screen.dart';
+import '../../features/payments/screens/payments_screen.dart';
+import '../../features/settings/screens/settings_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -40,14 +45,45 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MainShell(),
       ),
       GoRoute(
+        path: '/attendance',
+        name: 'attendance',
+        builder: (context, state) =>
+            const MainShell(), // Opens shell where Attendance is a tab
+      ),
+      GoRoute(
+        path: '/payments',
+        name: 'payments',
+        builder: (context, state) => const MainShell(),
+      ),
+      GoRoute(
+        path: '/settings',
+        name: 'settings',
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/members',
+        name: 'members',
+        builder: (context, state) =>
+            const MainShell(), // Should ideally navigate to the members tab in MainShell
+      ),
+      GoRoute(
         path: '/members/add',
         name: 'add-member',
-        builder: (context, state) {
+        builder: (context, state) => const AddMemberScreen(),
+        redirect: (context, state) {
           final authState = ref.read(authProvider);
-          if (authState.hasPermission(AppPermission.manageMembers)) {
-            return const AddMemberScreen();
+          if (!authState.hasPermission(AppPermission.manageMembers)) {
+            return '/dashboard';
           }
-          return const MainShell(); // Simple redirect for Phase 1
+          return null;
+        },
+      ),
+      GoRoute(
+        path: '/members/:memberId',
+        name: 'member-profile',
+        builder: (context, state) {
+          final memberId = state.pathParameters['memberId']!;
+          return MemberProfileScreen(memberId: memberId);
         },
       ),
     ],

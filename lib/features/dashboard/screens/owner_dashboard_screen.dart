@@ -8,6 +8,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/widgets/stat_card.dart';
 import '../../../core/widgets/section_header.dart';
+import '../../../core/providers/navigation_provider.dart';
 import '../../auth/models/user_model.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/dashboard_provider.dart';
@@ -142,7 +143,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
                   _buildAttendanceTrend(
                       List<int>.from(dashboardData.last30DaysAttendance)),
                   const SectionHeader(title: "Quick Actions"),
-                  _buildQuickActions(context, role),
+                  _buildQuickActions(context, ref, role),
                   if (isManagement) ...[
                     SectionHeader(
                       title: "Expiring Soon",
@@ -185,48 +186,47 @@ class OwnerDashboardScreen extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Good Morning, $name 👋",
-                style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textOnDark.withOpacity(0.9),
-                    fontWeight: FontWeight.w500),
-              ),
-              Text(
-                role == UserRole.member ? "Your Fitness Hub" : gymName,
-                style: AppTextStyles.heading2
-                    .copyWith(color: AppColors.textOnDark),
-              ),
-            ],
-          ),
-          Stack(
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: AppColors.textOnDark.withOpacity(0.2),
-                child: Text(name[0].toUpperCase(),
-                    style: AppTextStyles.heading3
-                        .copyWith(color: AppColors.textOnDark)),
-              ),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                      color: AppColors.danger,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primary, width: 2)),
-                  child: const Text("3",
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.bold)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Good Morning, $name 👋",
+                  style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textOnDark.withValues(alpha: 0.9),
+                      fontWeight: FontWeight.w500),
                 ),
-              ),
-            ],
+                Text(
+                  role == UserRole.member ? "Your Fitness Hub" : gymName,
+                  style: AppTextStyles.heading2
+                      .copyWith(color: AppColors.textOnDark),
+                ),
+              ],
+            ),
+          ),
+          Consumer(
+            builder: (context, ref, child) {
+              return Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      // Navigate to settings
+                      context.push('/settings'); // Placeholder route
+                    },
+                    icon: const Icon(Icons.settings_outlined,
+                        color: Colors.white),
+                    tooltip: 'Settings',
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      ref.read(authProvider.notifier).logout();
+                    },
+                    icon: const Icon(Icons.logout, color: Colors.white),
+                    tooltip: 'Logout',
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -381,7 +381,31 @@ class OwnerDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context, UserRole role) {
+  void _switchTabByPermission(
+      BuildContext context, WidgetRef ref, AppPermission permission) {
+    final authState = ref.read(authProvider);
+    final List<AppPermission> orderedPermissions = [
+      AppPermission.viewDashboard,
+      AppPermission.manageMembers,
+      AppPermission.viewAttendance,
+      AppPermission.managePayments,
+      AppPermission.manageClasses,
+    ];
+
+    int visibleIndex = 0;
+    for (var p in orderedPermissions) {
+      if (authState.hasPermission(p)) {
+        if (p == permission) {
+          ref.read(bottomNavIndexProvider.notifier).state = visibleIndex;
+          return;
+        }
+        visibleIndex++;
+      }
+    }
+  }
+
+  Widget _buildQuickActions(
+      BuildContext context, WidgetRef ref, UserRole role) {
     final List<Map<String, dynamic>> allActions = [
       {
         'label': 'Add Member',
@@ -471,7 +495,17 @@ class OwnerDashboardScreen extends ConsumerWidget {
             borderRadius: BorderRadius.circular(AppSizes.radiusM),
             onTap: () {
               final route = action['route'] as String?;
-              if (route != null) context.push(route);
+              if (route == null) return;
+
+              if (route == '/attendance') {
+                _switchTabByPermission(
+                    context, ref, AppPermission.viewAttendance);
+              } else if (route == '/members') {
+                _switchTabByPermission(
+                    context, ref, AppPermission.manageMembers);
+              } else {
+                context.push(route);
+              }
             },
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

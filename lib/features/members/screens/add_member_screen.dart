@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../models/member_model.dart';
@@ -17,150 +19,573 @@ class AddMemberScreen extends ConsumerStatefulWidget {
 
 class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _firstNameController = TextEditingController();
-  final _lastNameController = TextEditingController();
-  final _emailController = TextEditingController();
+  final _scrollController = ScrollController();
+
+  // Controllers
+  final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  
-  String _selectedPlan = 'Monthly Pro';
-  final List<String> _plans = ['Monthly Basic', 'Monthly Pro', 'Quarterly Basic', 'Yearly Gold'];
+  final _emailController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _healthNotesController = TextEditingController();
+  final _emergencyNameController = TextEditingController();
+  final _emergencyPhoneController = TextEditingController();
+
+  // Form State
+  DateTime? _dob;
+  String? _gender;
+  String _bloodGroup = 'Unknown';
+  String? _selectedPlan;
+  DateTime _joinDate = DateTime.now();
+  String? _assignedTrainer;
+
+  bool _isFormDirty = false;
+  bool _isLoading = false;
+
+  final List<Map<String, dynamic>> _plans = [
+    {'name': 'Monthly Basic', 'price': 1500, 'duration': 30},
+    {'name': 'Monthly Standard', 'price': 2500, 'duration': 30},
+    {'name': 'Quarterly Premium', 'price': 6500, 'duration': 90},
+    {'name': 'Annual Elite', 'price': 22000, 'duration': 365},
+  ];
+
+  final List<String> _trainers = [
+    'None',
+    'Sneha Kapoor',
+    'Rahul Mehta',
+    'Vikram Singh',
+    'Priya Nair'
+  ];
 
   @override
   void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _emailController.dispose();
+    _nameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
+    _addressController.dispose();
+    _healthNotesController.dispose();
+    _emergencyNameController.dispose();
+    _emergencyPhoneController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  void _submitForm() {
+  void _markDirty() {
+    if (!_isFormDirty) {
+      setState(() => _isFormDirty = true);
+    }
+  }
+
+  Future<bool> _onWillPop() async {
+    if (!_isFormDirty) return true;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Discard Changes?'),
+        content: const Text(
+            'You have unsaved member information. Are you sure you want to go back?'),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep Editing'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+            child: const Text('Discard', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    return result ?? false;
+  }
+
+  Future<void> _selectDate(BuildContext context,
+      {required DateTime initialDate,
+      required DateTime firstDate,
+      required DateTime lastDate,
+      required Function(DateTime) onSelected}) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        onSelected(picked);
+        _markDirty();
+      });
+    }
+  }
+
+  void _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      final newMember = MemberModel(
+      setState(() => _isLoading = true);
+
+      // Fake loading
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      final membersNotifier = ref.read(membersProvider.notifier);
+      final nextNumber = membersNotifier.nextMemberNumber;
+      final memberCode = 'GYM-2026-${nextNumber.toString().padLeft(4, '0')}';
+
+      final selectedPlanData =
+          _plans.firstWhere((p) => p['name'] == _selectedPlan);
+      final expiryDate =
+          _joinDate.add(Duration(days: selectedPlanData['duration']));
+
+      final newMember = Member(
         id: const Uuid().v4(),
-        firstName: _firstNameController.text,
-        lastName: _lastNameController.text,
-        email: _emailController.text,
-        phone: _phoneController.text,
-        planName: _selectedPlan,
-        status: MembershipStatus.active,
-        joinDate: DateTime.now(),
-        expiryDate: DateTime.now().add(const Duration(days: 30)),
+        memberCode: memberCode,
+        name: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        email: _emailController.text.trim(),
+        dateOfBirth: _dob!,
+        gender: _gender!,
+        planName: _selectedPlan!,
+        planPrice: (selectedPlanData['price'] as int).toDouble(),
+        status: MemberStatus.active,
+        joinDate: _joinDate,
+        planExpiry: expiryDate,
+        assignedTrainerName:
+            _assignedTrainer == 'None' ? null : _assignedTrainer,
+        bloodGroup: _bloodGroup == 'Unknown' ? null : _bloodGroup,
+        address: _addressController.text.trim(),
+        emergencyContactName: _emergencyNameController.text.trim(),
+        emergencyContactPhone: _emergencyPhoneController.text.trim(),
       );
 
-      ref.read(membersProvider.notifier).addMember(newMember);
-      context.pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Member added successfully')),
-      );
+      membersNotifier.addMember(newMember);
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                '✓ ${newMember.name} added successfully! ID: ${newMember.memberCode}'),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        context.go('/members/${newMember.id}');
+      }
+    } else {
+      // Validation failed, scroll to first error (simplified)
+      _scrollController.animateTo(0,
+          duration: const Duration(milliseconds: 300), curve: Curves.easeIn);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Add New Member'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSizes.paddingM),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildTextField(
-                controller: _firstNameController,
-                label: 'First Name',
-                icon: Icons.person_outline,
-                validator: (value) => value!.isEmpty ? 'Enter first name' : null,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _lastNameController,
-                label: 'Last Name',
-                icon: Icons.person_outline,
-                validator: (value) => value!.isEmpty ? 'Enter last name' : null,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _emailController,
-                label: 'Email Address',
-                icon: Icons.email_outlined,
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) => !value!.contains('@') ? 'Enter valid email' : null,
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _phoneController,
-                label: 'Phone Number',
-                icon: Icons.phone_outlined,
-                keyboardType: TextInputType.phone,
-                validator: (value) => value!.length < 10 ? 'Enter valid phone' : null,
-              ),
-              const SizedBox(height: 24),
-              const Text('Membership Plan', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              _buildPlanDropdown(),
-              const SizedBox(height: 40),
-              PrimaryButton(
-                text: 'Save Member',
-                onPressed: _submitForm,
-              ),
-            ],
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: Text('Add New Member', style: AppTextStyles.heading3),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.close, color: AppColors.textPrimary),
+            onPressed: () async {
+              if (await _onWillPop()) {
+                if (mounted) context.pop();
+              }
+            },
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Divider(
+                height: 1, color: AppColors.border.withValues(alpha: 0.5)),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusM),
-          borderSide: BorderSide.none,
+        body: Stack(
+          children: [
+            SingleChildScrollView(
+              controller: _scrollController,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+              child: Form(
+                key: _formKey,
+                onChanged: _markDirty,
+                child: Column(
+                  children: [
+                    _buildPhotoSection(),
+                    const SizedBox(height: 24),
+                    _buildPersonalInfoSection(),
+                    const SizedBox(height: 16),
+                    _buildMembershipSection(),
+                    const SizedBox(height: 16),
+                    _buildEmergencySection(),
+                    const SizedBox(height: 16),
+                    _buildAdditionalSection(),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _buildBottomButton(),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildPlanDropdown() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radiusM),
+  Widget _buildPhotoSection() {
+    return Center(
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Photo upload available in next version')),
+              );
+            },
+            child: Stack(
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                  child: Icon(Icons.person,
+                      size: 50,
+                      color: AppColors.primary.withValues(alpha: 0.4)),
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: CircleAvatar(
+                    radius: 16,
+                    backgroundColor: AppColors.accent,
+                    child: const Icon(Icons.camera_alt,
+                        size: 16, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text('Tap to add photo (optional)',
+              style: AppTextStyles.caption.copyWith(color: Colors.grey[600])),
+        ],
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedPlan,
-          isExpanded: true,
-          onChanged: (String? newValue) {
-            setState(() => _selectedPlan = newValue!);
+    );
+  }
+
+  Widget _buildSectionCard(
+      {required IconData icon,
+      required String title,
+      required List<Widget> children}) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: AppColors.accent, size: 20),
+                const SizedBox(width: 8),
+                Text(title, style: AppTextStyles.heading4),
+              ],
+            ),
+            const Divider(height: 24),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPersonalInfoSection() {
+    return _buildSectionCard(
+      icon: Icons.person_outline,
+      title: 'Personal Information',
+      children: [
+        TextFormField(
+          controller: _nameController,
+          decoration: _inputDecoration('Full Name *', Icons.badge_outlined),
+          validator: (value) {
+            if (value == null || value.isEmpty) return 'Full name is required';
+            if (value.length < 2) return 'Min 2 characters';
+            if (RegExp(r'[0-9]').hasMatch(value)) return 'Numbers not allowed';
+            return null;
           },
-          items: _plans.map<DropdownMenuItem<String>>((String value) {
+        ),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                maxLength: 10,
+                decoration:
+                    _inputDecoration('Mobile Number *', Icons.phone_outlined)
+                        .copyWith(counterText: ""),
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Required';
+                  if (value.length != 10) return 'Exactly 10 digits';
+                  if (!RegExp(r'^[6-9]').hasMatch(value))
+                    return 'Must start with 6-9';
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration:
+                    _inputDecoration('Email (optional)', Icons.email_outlined),
+                validator: (value) {
+                  if (value != null && value.isNotEmpty) {
+                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                        .hasMatch(value)) {
+                      return 'Invalid email';
+                    }
+                  }
+                  return null;
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextFormField(
+                readOnly: true,
+                onTap: () => _selectDate(
+                  context,
+                  initialDate:
+                      DateTime.now().subtract(const Duration(days: 365 * 25)),
+                  firstDate:
+                      DateTime.now().subtract(const Duration(days: 365 * 80)),
+                  lastDate:
+                      DateTime.now().subtract(const Duration(days: 365 * 13)),
+                  onSelected: (date) => _dob = date,
+                ),
+                decoration:
+                    _inputDecoration('Date of Birth *', Icons.cake_outlined),
+                controller: TextEditingController(
+                  text: _dob != null
+                      ? DateFormat('dd MMM yyyy').format(_dob!)
+                      : '',
+                ),
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Required' : null,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _gender,
+                isExpanded: true,
+                decoration: _inputDecoration('Gender *', Icons.wc_outlined),
+                items: ['Male', 'Female', 'Other']
+                    .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                    .toList(),
+                onChanged: (val) => setState(() => _gender = val),
+                validator: (val) => val == null ? 'Required' : null,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          value: _bloodGroup,
+          isExpanded: true,
+          decoration: _inputDecoration('Blood Group', Icons.bloodtype_outlined),
+          items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown']
+              .map((b) => DropdownMenuItem(value: b, child: Text(b)))
+              .toList(),
+          onChanged: (val) => setState(() => _bloodGroup = val!),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMembershipSection() {
+    return _buildSectionCard(
+      icon: Icons.card_membership,
+      title: 'Membership Details',
+      children: [
+        DropdownButtonFormField<String>(
+          value: _selectedPlan,
+          decoration:
+              _inputDecoration('Membership Plan *', Icons.fitness_center),
+          isExpanded: true,
+          items: _plans.map((p) {
             return DropdownMenuItem<String>(
-              value: value,
-              child: Text(value),
+              value: p['name'],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(p['name'] as String, style: AppTextStyles.bodyMedium),
+                  Text(
+                      '₹${p['price']} / ${p['duration'] == 30 ? 'month' : p['duration'] == 90 ? '3 months' : 'year'}',
+                      style:
+                          AppTextStyles.caption.copyWith(color: Colors.grey)),
+                ],
+              ),
             );
           }).toList(),
+          onChanged: (val) => setState(() => _selectedPlan = val),
+          validator: (val) => val == null ? 'Required' : null,
         ),
+        const SizedBox(height: 16),
+        TextFormField(
+          readOnly: true,
+          onTap: () => _selectDate(
+            context,
+            initialDate: DateTime.now(),
+            firstDate: DateTime.now().subtract(const Duration(days: 365)),
+            lastDate: DateTime.now(),
+            onSelected: (date) => _joinDate = date,
+          ),
+          decoration:
+              _inputDecoration('Join Date *', Icons.calendar_today_outlined),
+          controller: TextEditingController(
+            text: DateFormat('dd MMM yyyy').format(_joinDate),
+          ),
+          validator: (value) =>
+              value == null || value.isEmpty ? 'Required' : null,
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          value: _assignedTrainer ?? 'None',
+          decoration: _inputDecoration(
+              'Assign Personal Trainer', Icons.person_pin_outlined),
+          items: _trainers
+              .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+              .toList(),
+          onChanged: (val) => setState(() => _assignedTrainer = val),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmergencySection() {
+    return _buildSectionCard(
+      icon: Icons.emergency,
+      title: 'Emergency Contact',
+      children: [
+        TextFormField(
+          controller: _emergencyNameController,
+          decoration:
+              _inputDecoration('Contact Person Name', Icons.person_outline),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _emergencyPhoneController,
+          keyboardType: TextInputType.phone,
+          maxLength: 10,
+          decoration:
+              _inputDecoration('Contact Phone Number', Icons.phone_outlined)
+                  .copyWith(counterText: ""),
+          validator: (value) {
+            if (value != null && value.isNotEmpty && value.length != 10) {
+              return 'Must be 10 digits';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAdditionalSection() {
+    return _buildSectionCard(
+      icon: Icons.more_horiz,
+      title: 'Additional Details',
+      children: [
+        TextFormField(
+          controller: _addressController,
+          maxLines: 2,
+          decoration: _inputDecoration('Address', Icons.location_on_outlined),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _healthNotesController,
+          maxLines: 3,
+          decoration: _inputDecoration('Health Conditions / Notes',
+                  Icons.medical_information_outlined)
+              .copyWith(hintText: "e.g., knee injury, diabetes, allergies..."),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBottomButton() {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+          16, 16, 16, MediaQuery.of(context).padding.bottom + 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              offset: const Offset(0, -4),
+              blurRadius: 10)
+        ],
       ),
+      child: PrimaryButton(
+        text: 'Add Member',
+        onPressed: _submitForm,
+        isLoading: _isLoading,
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, size: 20),
+      labelStyle: AppTextStyles.caption.copyWith(color: Colors.grey[600]),
+      floatingLabelStyle:
+          AppTextStyles.caption.copyWith(color: AppColors.primary),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.danger),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
     );
   }
 }

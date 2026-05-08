@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum MembershipStatus {
+enum MemberStatus {
   active,
   expired,
   paused,
@@ -8,129 +8,78 @@ enum MembershipStatus {
 
   String get displayName {
     switch (this) {
-      case MembershipStatus.active:
+      case MemberStatus.active:
         return 'Active';
-      case MembershipStatus.expired:
+      case MemberStatus.expired:
         return 'Expired';
-      case MembershipStatus.paused:
+      case MemberStatus.paused:
         return 'Paused';
-      case MembershipStatus.inactive:
+      case MemberStatus.inactive:
         return 'Inactive';
     }
   }
 
   Color get color {
     switch (this) {
-      case MembershipStatus.active:
+      case MemberStatus.active:
         return const Color(0xFF2ECC71);
-      case MembershipStatus.expired:
+      case MemberStatus.expired:
         return const Color(0xFFE74C3C);
-      case MembershipStatus.paused:
+      case MemberStatus.paused:
         return const Color(0xFFF39C12);
-      case MembershipStatus.inactive:
+      case MemberStatus.inactive:
         return const Color(0xFF9CA3AF);
     }
   }
 }
 
-class MemberModel {
+class Member {
   final String id;
-  final String firstName;
-  final String lastName;
-  final String email;
+  final String memberCode; // GYM-2026-XXXX
+  final String name;
   final String phone;
+  final String email;
+  final DateTime dateOfBirth;
+  final String gender;
+  final String? photoUrl;
   final String planName;
-  final MembershipStatus status;
+  final double planPrice;
+  final MemberStatus status;
   final DateTime joinDate;
-  final DateTime expiryDate;
-  final String? profileImageUrl;
+  final DateTime planExpiry;
+  final String? assignedTrainerName;
+  final String? bloodGroup;
+  final String? address;
+  final String emergencyContactName;
+  final String emergencyContactPhone;
 
-  const MemberModel({
+  const Member({
     required this.id,
-    required this.firstName,
-    required this.lastName,
-    required this.email,
+    required this.memberCode,
+    required this.name,
     required this.phone,
+    required this.email,
+    required this.dateOfBirth,
+    required this.gender,
+    this.photoUrl,
     required this.planName,
+    required this.planPrice,
     required this.status,
     required this.joinDate,
-    required this.expiryDate,
-    this.profileImageUrl,
+    required this.planExpiry,
+    this.assignedTrainerName,
+    this.bloodGroup,
+    this.address,
+    required this.emergencyContactName,
+    required this.emergencyContactPhone,
   });
 
-  String get fullName => '$firstName $lastName';
   String get initials {
-    final f = firstName.trim().isNotEmpty ? firstName.trim()[0] : '?';
-    final l = lastName.trim().isNotEmpty ? lastName.trim()[0] : '';
-    return '$f$l'.toUpperCase();
+    if (name.isEmpty) return '?';
+    final parts = name.trim().split(' ');
+    if (parts.length > 1) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return parts[0][0].toUpperCase();
   }
 }
-
-final dummyMembers = [
-  MemberModel(
-    id: '1',
-    firstName: 'Rahul',
-    lastName: 'Sharma',
-    email: 'rahul@example.com',
-    phone: '+91 9876543210',
-    planName: 'Monthly Pro',
-    status: MembershipStatus.active,
-    joinDate: DateTime(2024, 1, 15),
-    expiryDate: DateTime.now().add(const Duration(days: 2)),
-  ),
-  MemberModel(
-    id: '2',
-    firstName: 'Anjali',
-    lastName: 'Gupta',
-    email: 'anjali@example.com',
-    phone: '+91 9876543211',
-    planName: 'Quarterly Basic',
-    status: MembershipStatus.active,
-    joinDate: DateTime(2023, 11, 20),
-    expiryDate: DateTime.now().add(const Duration(days: 45)),
-  ),
-  MemberModel(
-    id: '3',
-    firstName: 'Vikram',
-    lastName: 'Singh',
-    email: 'vikram@example.com',
-    phone: '+91 9876543212',
-    planName: 'Yearly Gold',
-    status: MembershipStatus.expired,
-    joinDate: DateTime(2023, 5, 10),
-    expiryDate: DateTime.now().subtract(const Duration(days: 1)),
-  ),
-  MemberModel(
-    id: '4',
-    firstName: 'Sneha',
-    lastName: 'Reddy',
-    email: 'sneha@example.com',
-    phone: '+91 9876543213',
-    planName: 'Monthly Basic',
-    status: MembershipStatus.paused,
-    joinDate: DateTime(2024, 2, 5),
-    expiryDate: DateTime.now().add(const Duration(days: 7)),
-  ),
-  MemberModel(
-    id: '5',
-    firstName: 'Amit',
-    lastName: 'Kumar',
-    email: 'amit@example.com',
-    phone: '+91 9876543214',
-    planName: 'Monthly Pro',
-    status: MembershipStatus.active,
-    joinDate: DateTime(2024, 3, 1),
-    expiryDate: DateTime.now().add(const Duration(days: 20)),
-  ),
-  MemberModel(
-    id: '6',
-    firstName: 'Priya',
-    lastName: 'Das',
-    email: 'priya@example.com',
-    phone: '+91 9876543215',
-    planName: 'Monthly Basic',
-    status: MembershipStatus.active,
-    joinDate: DateTime(2024, 4, 10),
-    expiryDate: DateTime.now().add(const Duration(days: 15)),
-  ),
-];
