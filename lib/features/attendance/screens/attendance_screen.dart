@@ -16,7 +16,8 @@ class AttendanceScreen extends ConsumerWidget {
     final attendanceState = ref.watch(attendanceProvider);
     final totalMembersCount = 248; // Dummy total for percentage
     final checkInCount = attendanceState.todaysRecords.length;
-    final attendancePercentage = (checkInCount / totalMembersCount * 100).toStringAsFixed(1);
+    final attendancePercentage =
+        (checkInCount / totalMembersCount * 100).toStringAsFixed(1);
 
     return DefaultTabController(
       length: 2,
@@ -48,22 +49,24 @@ class AttendanceScreen extends ConsumerWidget {
         ),
         body: Column(
           children: [
-            _buildSummaryCard(checkInCount, totalMembersCount, attendancePercentage),
+            _buildSummaryCard(
+                checkInCount, totalMembersCount, attendancePercentage),
             TabBar(
               labelColor: AppColors.primary,
               unselectedLabelColor: Colors.grey,
               indicatorColor: AppColors.primary,
-              labelStyle: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold),
+              labelStyle: AppTextStyles.bodyMedium
+                  .copyWith(fontWeight: FontWeight.bold),
               tabs: [
                 Tab(text: 'Checked In ($checkInCount)'),
-                const Tab(text: 'Check In Member'),
+                const Tab(text: 'Checked Out'),
               ],
             ),
             Expanded(
               child: TabBarView(
                 children: [
                   _CheckedInTab(),
-                  _CheckInMemberTab(),
+                  _CheckedOutTab(),
                 ],
               ),
             ),
@@ -73,7 +76,8 @@ class AttendanceScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSummaryCard(int checkInCount, int totalMembers, String percentage) {
+  Widget _buildSummaryCard(
+      int checkInCount, int totalMembers, String percentage) {
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -90,7 +94,8 @@ class AttendanceScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildSummaryItem("Today's Check-ins", checkInCount.toString(), isBold: true),
+              _buildSummaryItem("Today's Check-ins", checkInCount.toString(),
+                  isBold: true),
               const SizedBox(
                 height: 40,
                 child: VerticalDivider(color: Colors.white30, thickness: 1),
@@ -121,7 +126,8 @@ class AttendanceScreen extends ConsumerWidget {
   Widget _buildSummaryItem(String label, String value, {bool isBold = false}) {
     return Column(
       children: [
-        Text(label, style: AppTextStyles.caption.copyWith(color: Colors.white70)),
+        Text(label,
+            style: AppTextStyles.caption.copyWith(color: Colors.white70)),
         const SizedBox(height: 4),
         Text(
           value,
@@ -141,8 +147,13 @@ class _CheckedInTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(attendanceProvider);
     final filteredRecords = state.todaysRecords
-        .where((r) => r.memberName.toLowerCase().contains(state.searchQuery.toLowerCase()) || 
-                      r.memberCode.toLowerCase().contains(state.searchQuery.toLowerCase()))
+        .where((r) =>
+            r.memberName
+                .toLowerCase()
+                .contains(state.searchQuery.toLowerCase()) ||
+            r.memberCode
+                .toLowerCase()
+                .contains(state.searchQuery.toLowerCase()))
         .toList();
 
     return Column(
@@ -150,7 +161,8 @@ class _CheckedInTab extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: TextField(
-            onChanged: (val) => ref.read(attendanceProvider.notifier).setSearch(val),
+            onChanged: (val) =>
+                ref.read(attendanceProvider.notifier).setSearch(val),
             decoration: InputDecoration(
               hintText: 'Search checked-in members...',
               prefixIcon: const Icon(Icons.search),
@@ -168,17 +180,21 @@ class _CheckedInTab extends ConsumerWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.check_circle_outline, size: 64, color: Colors.grey),
+                      Icon(Icons.check_circle_outline,
+                          size: 64, color: Colors.grey),
                       SizedBox(height: 16),
-                      Text('No results found', style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text('Try a different name', style: TextStyle(color: Colors.grey)),
+                      Text('No results found',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text('Try a different name',
+                          style: TextStyle(color: Colors.grey)),
                     ],
                   ),
                 )
               : ListView.separated(
                   itemCount: filteredRecords.length,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  separatorBuilder: (context, index) => const Divider(height: 1),
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final record = filteredRecords[index];
                     return Container(
@@ -187,20 +203,29 @@ class _CheckedInTab extends ConsumerWidget {
                       ),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                          child: Text(record.memberName[0], style: const TextStyle(color: AppColors.primary)),
+                          backgroundColor:
+                              AppColors.primary.withValues(alpha: 0.1),
+                          child: Text(record.memberName[0],
+                              style: const TextStyle(color: AppColors.primary)),
                         ),
-                        title: Text(record.memberName, style: AppTextStyles.bodyMedium),
-                        subtitle: Text('${record.memberCode} · ${record.planName}', style: AppTextStyles.caption),
+                        title: Text(record.memberName,
+                            style: AppTextStyles.bodyMedium),
+                        subtitle: Text(
+                            '${record.memberCode} · ${record.planName}',
+                            style: AppTextStyles.caption),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
                               DateFormat('hh:mm a').format(record.checkInTime),
-                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.success, fontWeight: FontWeight.bold),
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                  color: AppColors.success,
+                                  fontWeight: FontWeight.bold),
                             ),
-                            const Text('Checked in', style: TextStyle(color: AppColors.success, fontSize: 10)),
+                            const Text('Checked in',
+                                style: TextStyle(
+                                    color: AppColors.success, fontSize: 10)),
                           ],
                         ),
                       ),
@@ -213,12 +238,12 @@ class _CheckedInTab extends ConsumerWidget {
   }
 }
 
-class _CheckInMemberTab extends ConsumerStatefulWidget {
+class _CheckedOutTab extends ConsumerStatefulWidget {
   @override
-  ConsumerState<_CheckInMemberTab> createState() => _CheckInMemberTabState();
+  ConsumerState<_CheckedOutTab> createState() => _CheckedOutTabState();
 }
 
-class _CheckInMemberTabState extends ConsumerState<_CheckInMemberTab> {
+class _CheckedOutTabState extends ConsumerState<_CheckedOutTab> {
   final _searchController = TextEditingController();
   String _query = '';
 
@@ -234,13 +259,14 @@ class _CheckInMemberTabState extends ConsumerState<_CheckInMemberTab> {
     final attendanceNotifier = ref.watch(attendanceProvider.notifier);
     final isCheckingIn = ref.watch(attendanceProvider).isCheckingIn;
 
-    final results = _query.isEmpty 
-        ? <Member>[] 
-        : allMembers.where((m) => 
-            m.name.toLowerCase().contains(_query.toLowerCase()) || 
-            m.phone.contains(_query) || 
-            m.memberCode.toLowerCase().contains(_query.toLowerCase())
-          ).toList();
+    final results = _query.isEmpty
+        ? <Member>[]
+        : allMembers
+            .where((m) =>
+                m.name.toLowerCase().contains(_query.toLowerCase()) ||
+                m.phone.contains(_query) ||
+                m.memberCode.toLowerCase().contains(_query.toLowerCase()))
+            .toList();
 
     return Column(
       children: [
@@ -256,9 +282,12 @@ class _CheckInMemberTabState extends ConsumerState<_CheckInMemberTab> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, color: AppColors.accent, size: 20),
+                    const Icon(Icons.info_outline,
+                        color: AppColors.accent, size: 20),
                     const SizedBox(width: 8),
-                    Text('Search a member and tap Check In', style: AppTextStyles.caption.copyWith(color: AppColors.accent)),
+                    Text('Search a member and tap Check In',
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.accent)),
                   ],
                 ),
               ),
@@ -285,31 +314,38 @@ class _CheckInMemberTabState extends ConsumerState<_CheckInMemberTab> {
               : ListView.separated(
                   itemCount: results.length,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  separatorBuilder: (context, index) => const Divider(height: 1),
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final member = results[index];
-                    final isCheckedIn = attendanceNotifier.isAlreadyCheckedIn(member.id);
-                    final checkInTime = attendanceNotifier.getCheckInTime(member.id);
+                    final isCheckedIn =
+                        attendanceNotifier.isAlreadyCheckedIn(member.id);
+                    final checkInTime =
+                        attendanceNotifier.getCheckInTime(member.id);
 
                     return ListTile(
                       leading: CircleAvatar(
                         child: Text(member.initials),
                       ),
                       title: Text(member.name),
-                      subtitle: Text('${member.memberCode} · ${member.planName}'),
-                      trailing: _buildTrailing(member, isCheckedIn, checkInTime, isCheckingIn),
+                      subtitle:
+                          Text('${member.memberCode} · ${member.planName}'),
+                      trailing: _buildTrailing(
+                          member, isCheckedIn, checkInTime, isCheckingIn),
                       onTap: () {
                         if (isCheckedIn) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('${member.name} already checked in today at $checkInTime'),
+                              content: Text(
+                                  '${member.name} already checked in today at $checkInTime'),
                               backgroundColor: Colors.orange,
                             ),
                           );
                         } else if (member.status == MemberStatus.expired) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Membership expired. Collect payment first.'),
+                              content: Text(
+                                  'Membership expired. Collect payment first.'),
                               backgroundColor: AppColors.danger,
                             ),
                           );
@@ -323,14 +359,20 @@ class _CheckInMemberTabState extends ConsumerState<_CheckInMemberTab> {
     );
   }
 
-  Widget _buildTrailing(Member member, bool isCheckedIn, String? checkInTime, bool isCheckingInGlobal) {
+  Widget _buildTrailing(Member member, bool isCheckedIn, String? checkInTime,
+      bool isCheckingInGlobal) {
     if (isCheckedIn) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          const Text('✓ Checked In', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 12)),
-          Text(checkInTime ?? '', style: AppTextStyles.caption.copyWith(color: AppColors.success)),
+          const Text('✓ Checked In',
+              style: TextStyle(
+                  color: AppColors.success,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12)),
+          Text(checkInTime ?? '',
+              style: AppTextStyles.caption.copyWith(color: AppColors.success)),
         ],
       );
     }
@@ -342,7 +384,11 @@ class _CheckInMemberTabState extends ConsumerState<_CheckInMemberTab> {
           color: AppColors.danger,
           borderRadius: BorderRadius.circular(4),
         ),
-        child: const Text('Expired', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+        child: const Text('Expired',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold)),
       );
     }
 
@@ -363,7 +409,8 @@ class _CheckInMemberTabState extends ConsumerState<_CheckInMemberTab> {
     try {
       await ref.read(attendanceProvider.notifier).checkIn(member);
       if (mounted) {
-        final time = ref.read(attendanceProvider.notifier).getCheckInTime(member.id);
+        final time =
+            ref.read(attendanceProvider.notifier).getCheckInTime(member.id);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✓ ${member.name} checked in at $time'),
@@ -375,7 +422,8 @@ class _CheckInMemberTabState extends ConsumerState<_CheckInMemberTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${member.name} already checked in today at ${e.time}'),
+            content:
+                Text('${member.name} already checked in today at ${e.time}'),
             backgroundColor: Colors.orange,
           ),
         );

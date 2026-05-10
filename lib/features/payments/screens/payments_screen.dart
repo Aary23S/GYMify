@@ -19,10 +19,11 @@ class PaymentsScreen extends ConsumerStatefulWidget {
   ConsumerState<PaymentsScreen> createState() => _PaymentsScreenState();
 }
 
-class _PaymentsScreenState extends ConsumerState<PaymentsScreen> with SingleTickerProviderStateMixin {
+class _PaymentsScreenState extends ConsumerState<PaymentsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _collectFormKey = GlobalKey<FormState>();
-  
+
   // Collect Tab State
   Member? _selectedMember;
   String? _selectedPlan;
@@ -50,12 +51,12 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> with SingleTick
   void _prePopulateCollect(PendingRenewal renewal) {
     final members = ref.read(membersProvider);
     final member = members.firstWhere((m) => m.id == renewal.memberId);
-    
+
     setState(() {
       _selectedMember = member;
       _selectedPlan = renewal.currentPlan;
       _amountController.text = renewal.amount.toInt().toString();
-      _tabController.animateTo(0);
+      _tabController.animateTo(1);
     });
   }
 
@@ -80,8 +81,8 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> with SingleTick
                 unselectedLabelColor: Colors.grey,
                 indicatorColor: AppColors.accent,
                 tabs: [
-                  const Tab(text: 'Collect'),
                   Tab(text: 'Pending (${state.pendingRenewals.length})'),
+                  const Tab(text: 'Collect'),
                   const Tab(text: 'History'),
                 ],
               ),
@@ -92,6 +93,10 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> with SingleTick
       body: TabBarView(
         controller: _tabController,
         children: [
+          _PendingRenewalsTab(
+            renewals: state.pendingRenewals,
+            onCollect: _prePopulateCollect,
+          ),
           _CollectPaymentTab(
             formKey: _collectFormKey,
             selectedMember: _selectedMember,
@@ -123,14 +128,11 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> with SingleTick
             onSubmit: _handleRecordPayment,
             isRecording: state.isRecordingPayment,
           ),
-          _PendingRenewalsTab(
-            renewals: state.pendingRenewals,
-            onCollect: _prePopulateCollect,
-          ),
           _PaymentHistoryTab(
             payments: state.payments,
             selectedMode: state.selectedMode,
-            onModeFilter: (mode) => ref.read(paymentsProvider.notifier).setModeFilter(mode),
+            onModeFilter: (mode) =>
+                ref.read(paymentsProvider.notifier).setModeFilter(mode),
           ),
         ],
       ),
@@ -153,7 +155,8 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> with SingleTick
           ),
           _SummaryCard(
             label: 'This Month',
-            value: '₹${NumberFormat('#,##,000').format(state.stats.monthTotal)}',
+            value:
+                '₹${NumberFormat('#,##,000').format(state.stats.monthTotal)}',
             subtitle: '${state.stats.monthTransactions} transactions',
             icon: Icons.calendar_month,
             iconColor: Colors.blue,
@@ -166,7 +169,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> with SingleTick
             icon: Icons.schedule,
             iconColor: Colors.orange,
             accentColor: AppColors.warning,
-            onTap: () => _tabController.animateTo(1),
+            onTap: () => _tabController.animateTo(0),
           ),
         ],
       ),
@@ -175,8 +178,9 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> with SingleTick
 
   void _handleRecordPayment() async {
     if (_collectFormKey.currentState!.validate()) {
-      final selectedPlanData = _plans.firstWhere((p) => p['name'] == _selectedPlan);
-      
+      final selectedPlanData =
+          _plans.firstWhere((p) => p['name'] == _selectedPlan);
+
       final record = PaymentRecord(
         id: const Uuid().v4(),
         memberId: _selectedMember!.id,
@@ -186,16 +190,19 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> with SingleTick
         amount: double.parse(_amountController.text),
         paymentMode: _paymentMode,
         paymentDate: _paymentDate,
-        transactionRef: _refController.text.isNotEmpty ? _refController.text : null,
-        invoiceNumber: 'INV-2026-${(ref.read(paymentsProvider).payments.length + 1).toString().padLeft(4, '0')}',
+        transactionRef:
+            _refController.text.isNotEmpty ? _refController.text : null,
+        invoiceNumber:
+            'INV-2026-${(ref.read(paymentsProvider).payments.length + 1).toString().padLeft(4, '0')}',
       );
 
       await ref.read(paymentsProvider.notifier).recordPayment(record);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✓ Payment of ₹${record.amount.toInt()} recorded for ${record.memberName}'),
+            content: Text(
+                '✓ Payment of ₹${record.amount.toInt()} recorded for ${record.memberName}'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -220,7 +227,8 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> with SingleTick
   void _showInvoiceBottomSheet(PaymentRecord record) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) => _InvoiceBottomSheet(record: record),
     );
   }
@@ -264,7 +272,12 @@ class _SummaryCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border(left: BorderSide(color: accentColor, width: 4)),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2))
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,12 +290,16 @@ class _SummaryCard extends StatelessWidget {
                   child: Icon(icon, size: 14, color: iconColor),
                 ),
                 const SizedBox(width: 8),
-                Text(label, style: AppTextStyles.caption.copyWith(color: Colors.grey[600])),
+                Text(label,
+                    style: AppTextStyles.caption
+                        .copyWith(color: Colors.grey[600])),
               ],
             ),
             const SizedBox(height: 8),
             Text(value, style: AppTextStyles.heading3.copyWith(fontSize: 18)),
-            Text(subtitle, style: AppTextStyles.caption.copyWith(fontSize: 10, color: Colors.grey)),
+            Text(subtitle,
+                style: AppTextStyles.caption
+                    .copyWith(fontSize: 10, color: Colors.grey)),
           ],
         ),
       ),
@@ -352,16 +369,21 @@ class _CollectPaymentTab extends StatelessWidget {
       children: [
         DropdownButtonFormField<String>(
           value: selectedPlan,
-          decoration: const InputDecoration(labelText: 'Select Plan *', prefixIcon: Icon(Icons.fitness_center)),
+          decoration: const InputDecoration(
+              labelText: 'Select Plan *',
+              prefixIcon: Icon(Icons.fitness_center)),
           items: [
             {'name': 'Monthly Basic', 'price': 1500.0},
             {'name': 'Monthly Standard', 'price': 2500.0},
             {'name': 'Quarterly Premium', 'price': 6500.0},
             {'name': 'Annual Elite', 'price': 22000.0},
-          ].map((p) => DropdownMenuItem(
-            value: p['name'] as String,
-            child: Text('${p['name']} - ₹${(p['price'] as double).toInt()}'),
-          )).toList(),
+          ]
+              .map((p) => DropdownMenuItem(
+                    value: p['name'] as String,
+                    child: Text(
+                        '${p['name']} - ₹${(p['price'] as double).toInt()}'),
+                  ))
+              .toList(),
           onChanged: (val) {
             if (val != null) {
               final price = [
@@ -378,25 +400,33 @@ class _CollectPaymentTab extends StatelessWidget {
         TextFormField(
           controller: amountController,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Amount (₹) *', prefixIcon: Icon(Icons.currency_rupee)),
+          decoration: const InputDecoration(
+              labelText: 'Amount (₹) *',
+              prefixIcon: Icon(Icons.currency_rupee)),
         ),
         const SizedBox(height: 24),
-        const Text('Payment Mode *', style: TextStyle(fontWeight: FontWeight.bold)),
+        const Text('Payment Mode *',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         _ModeChips(selectedMode: paymentMode, onModeChanged: onModeChanged),
         if (paymentMode != 'cash') ...[
           const SizedBox(height: 16),
           TextFormField(
             controller: refController,
-            decoration: const InputDecoration(labelText: 'Transaction ID / Ref (optional)', prefixIcon: Icon(Icons.tag)),
+            decoration: const InputDecoration(
+                labelText: 'Transaction ID / Ref (optional)',
+                prefixIcon: Icon(Icons.tag)),
           ),
         ],
         const SizedBox(height: 16),
         TextFormField(
           readOnly: true,
           onTap: onDateTap,
-          decoration: const InputDecoration(labelText: 'Payment Date', prefixIcon: Icon(Icons.calendar_today)),
-          controller: TextEditingController(text: DateFormat('dd MMM yyyy').format(paymentDate)),
+          decoration: const InputDecoration(
+              labelText: 'Payment Date',
+              prefixIcon: Icon(Icons.calendar_today)),
+          controller: TextEditingController(
+              text: DateFormat('dd MMM yyyy').format(paymentDate)),
         ),
         const SizedBox(height: 16),
         TextFormField(
@@ -425,10 +455,16 @@ class _MemberSearchField extends ConsumerWidget {
     return Autocomplete<Member>(
       displayStringForOption: (m) => m.name,
       optionsBuilder: (textEditingValue) {
-        if (textEditingValue.text.isEmpty) return const Iterable<Member>.empty();
+        if (textEditingValue.text.isEmpty)
+          return const Iterable<Member>.empty();
         final members = ref.read(membersProvider);
-        return members.where((m) => m.name.toLowerCase().contains(textEditingValue.text.toLowerCase()) || 
-                                   m.memberCode.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+        return members.where((m) =>
+            m.name
+                .toLowerCase()
+                .contains(textEditingValue.text.toLowerCase()) ||
+            m.memberCode
+                .toLowerCase()
+                .contains(textEditingValue.text.toLowerCase()));
       },
       onSelected: onSelected,
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
@@ -492,8 +528,10 @@ class _SelectedMemberCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(member.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text('${member.memberCode} · ${member.planName}', style: AppTextStyles.caption),
+                Text(member.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text('${member.memberCode} · ${member.planName}',
+                    style: AppTextStyles.caption),
               ],
             ),
           ),
@@ -532,13 +570,27 @@ class _ModeChips extends StatelessWidget {
               decoration: BoxDecoration(
                 color: isSelected ? AppColors.accent : Colors.white,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isSelected ? AppColors.accent : AppColors.primary),
-                boxShadow: isSelected ? [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2))] : null,
+                border: Border.all(
+                    color: isSelected ? AppColors.accent : AppColors.primary),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                            color: AppColors.accent.withValues(alpha: 0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2))
+                      ]
+                    : null,
               ),
               child: Column(
                 children: [
                   Text(m['icon']!, style: const TextStyle(fontSize: 16)),
-                  Text(m['label']!, style: TextStyle(fontSize: 10, color: isSelected ? Colors.white : AppColors.primary, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                  Text(m['label']!,
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: isSelected ? Colors.white : AppColors.primary,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal)),
                 ],
               ),
             ),
@@ -568,14 +620,30 @@ class _PendingRenewalsTab extends StatelessWidget {
         return Card(
           elevation: 0,
           margin: const EdgeInsets.only(bottom: 12),
-          color: isExpired ? AppColors.danger.withValues(alpha: 0.06) : isCritical ? AppColors.warning.withValues(alpha: 0.06) : Colors.white,
+          color: isExpired
+              ? AppColors.danger.withValues(alpha: 0.06)
+              : isCritical
+                  ? AppColors.warning.withValues(alpha: 0.06)
+                  : Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: isExpired ? AppColors.danger.withValues(alpha: 0.1) : isCritical ? AppColors.warning.withValues(alpha: 0.1) : AppColors.border),
+            side: BorderSide(
+                color: isExpired
+                    ? AppColors.danger.withValues(alpha: 0.1)
+                    : isCritical
+                        ? AppColors.warning.withValues(alpha: 0.1)
+                        : AppColors.border),
           ),
           child: Container(
             decoration: BoxDecoration(
-              border: Border(left: BorderSide(color: isExpired ? AppColors.danger : isCritical ? AppColors.warning : AppColors.primary, width: 4)),
+              border: Border(
+                  left: BorderSide(
+                      color: isExpired
+                          ? AppColors.danger
+                          : isCritical
+                              ? AppColors.warning
+                              : AppColors.primary,
+                      width: 4)),
             ),
             child: Padding(
               padding: const EdgeInsets.all(12),
@@ -587,16 +655,36 @@ class _PendingRenewalsTab extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(r.memberName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        Text('${r.memberCode} · ${r.currentPlan}', style: AppTextStyles.caption),
+                        Text(r.memberName,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
+                        Text('${r.memberCode} · ${r.currentPlan}',
+                            style: AppTextStyles.caption),
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(isExpired ? Icons.error : Icons.schedule, size: 14, color: isExpired ? AppColors.danger : isCritical ? AppColors.warning : Colors.grey),
+                            Icon(isExpired ? Icons.error : Icons.schedule,
+                                size: 14,
+                                color: isExpired
+                                    ? AppColors.danger
+                                    : isCritical
+                                        ? AppColors.warning
+                                        : Colors.grey),
                             const SizedBox(width: 4),
                             Text(
-                              isExpired ? 'Expired ${r.daysUntilExpiry.abs()} days ago' : r.daysUntilExpiry == 0 ? 'Expires today' : r.daysUntilExpiry == 1 ? 'Expires tomorrow' : 'Expires in ${r.daysUntilExpiry} days',
-                              style: AppTextStyles.caption.copyWith(color: isExpired ? AppColors.danger : isCritical ? AppColors.warning : Colors.grey),
+                              isExpired
+                                  ? 'Expired ${r.daysUntilExpiry.abs()} days ago'
+                                  : r.daysUntilExpiry == 0
+                                      ? 'Expires today'
+                                      : r.daysUntilExpiry == 1
+                                          ? 'Expires tomorrow'
+                                          : 'Expires in ${r.daysUntilExpiry} days',
+                              style: AppTextStyles.caption.copyWith(
+                                  color: isExpired
+                                      ? AppColors.danger
+                                      : isCritical
+                                          ? AppColors.warning
+                                          : Colors.grey),
                             ),
                           ],
                         ),
@@ -606,17 +694,31 @@ class _PendingRenewalsTab extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text('₹${r.amount.toInt()}', style: AppTextStyles.heading3.copyWith(fontSize: 16, color: isExpired ? AppColors.danger : null)),
+                      Text('₹${r.amount.toInt()}',
+                          style: AppTextStyles.heading3.copyWith(
+                              fontSize: 16,
+                              color: isExpired ? AppColors.danger : null)),
                       const SizedBox(height: 4),
                       OutlinedButton(
                         onPressed: () => onCollect(r),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: isExpired ? AppColors.danger : isCritical ? AppColors.warning : AppColors.primary,
-                          side: BorderSide(color: isExpired ? AppColors.danger : isCritical ? AppColors.warning : AppColors.primary),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                          foregroundColor: isExpired
+                              ? AppColors.danger
+                              : isCritical
+                                  ? AppColors.warning
+                                  : AppColors.primary,
+                          side: BorderSide(
+                              color: isExpired
+                                  ? AppColors.danger
+                                  : isCritical
+                                      ? AppColors.warning
+                                      : AppColors.primary),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 0),
                           minimumSize: const Size(0, 32),
                         ),
-                        child: const Text('Collect', style: TextStyle(fontSize: 12)),
+                        child: const Text('Collect',
+                            style: TextStyle(fontSize: 12)),
                       ),
                     ],
                   ),
@@ -635,11 +737,16 @@ class _PaymentHistoryTab extends StatelessWidget {
   final String? selectedMode;
   final Function(String?) onModeFilter;
 
-  const _PaymentHistoryTab({required this.payments, required this.selectedMode, required this.onModeFilter});
+  const _PaymentHistoryTab(
+      {required this.payments,
+      required this.selectedMode,
+      required this.onModeFilter});
 
   @override
   Widget build(BuildContext context) {
-    final filtered = selectedMode == null ? payments : payments.where((p) => p.paymentMode == selectedMode).toList();
+    final filtered = selectedMode == null
+        ? payments
+        : payments.where((p) => p.paymentMode == selectedMode).toList();
 
     return Column(
       children: [
@@ -648,15 +755,30 @@ class _PaymentHistoryTab extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              FilterChip(label: const Text('All'), selected: selectedMode == null, onSelected: (_) => onModeFilter(null)),
+              FilterChip(
+                  label: const Text('All'),
+                  selected: selectedMode == null,
+                  onSelected: (_) => onModeFilter(null)),
               const SizedBox(width: 8),
-              FilterChip(label: const Text('Cash'), selected: selectedMode == 'cash', onSelected: (_) => onModeFilter('cash')),
+              FilterChip(
+                  label: const Text('Cash'),
+                  selected: selectedMode == 'cash',
+                  onSelected: (_) => onModeFilter('cash')),
               const SizedBox(width: 8),
-              FilterChip(label: const Text('UPI'), selected: selectedMode == 'upi', onSelected: (_) => onModeFilter('upi')),
+              FilterChip(
+                  label: const Text('UPI'),
+                  selected: selectedMode == 'upi',
+                  onSelected: (_) => onModeFilter('upi')),
               const SizedBox(width: 8),
-              FilterChip(label: const Text('Card'), selected: selectedMode == 'card', onSelected: (_) => onModeFilter('card')),
+              FilterChip(
+                  label: const Text('Card'),
+                  selected: selectedMode == 'card',
+                  onSelected: (_) => onModeFilter('card')),
               const SizedBox(width: 8),
-              FilterChip(label: const Text('Bank'), selected: selectedMode == 'bank_transfer', onSelected: (_) => onModeFilter('bank_transfer')),
+              FilterChip(
+                  label: const Text('Bank'),
+                  selected: selectedMode == 'bank_transfer',
+                  onSelected: (_) => onModeFilter('bank_transfer')),
             ],
           ),
         ),
@@ -664,7 +786,9 @@ class _PaymentHistoryTab extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: Text('Showing ${filtered.length} payments · Total: ₹${filtered.fold(0.0, (sum, p) => sum + p.amount).toInt()}', style: AppTextStyles.caption),
+            child: Text(
+                'Showing ${filtered.length} payments · Total: ₹${filtered.fold(0.0, (sum, p) => sum + p.amount).toInt()}',
+                style: AppTextStyles.caption),
           ),
         ),
         const SizedBox(height: 12),
@@ -679,21 +803,32 @@ class _PaymentHistoryTab extends StatelessWidget {
                     return Card(
                       elevation: 0,
                       margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: AppColors.border)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(color: AppColors.border)),
                       child: ListTile(
-                        title: Text(p.memberName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        title: Text(p.memberName,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('${p.memberCode} · ${p.planName}', style: AppTextStyles.caption),
-                            Text(DateFormat('dd MMM yyyy, hh:mm a').format(p.paymentDate), style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                            Text('${p.memberCode} · ${p.planName}',
+                                style: AppTextStyles.caption),
+                            Text(
+                                DateFormat('dd MMM yyyy, hh:mm a')
+                                    .format(p.paymentDate),
+                                style: AppTextStyles.caption
+                                    .copyWith(fontSize: 10)),
                           ],
                         ),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('₹${p.amount.toInt()}', style: AppTextStyles.heading3.copyWith(fontSize: 16)),
+                            Text('₹${p.amount.toInt()}',
+                                style: AppTextStyles.heading3
+                                    .copyWith(fontSize: 16)),
                             const SizedBox(height: 4),
                             _ModeBadge(mode: p.paymentMode),
                           ],
@@ -717,15 +852,31 @@ class _ModeBadge extends StatelessWidget {
     Color color;
     String label;
     switch (mode) {
-      case 'cash': color = Colors.green; label = 'Cash'; break;
-      case 'upi': color = Colors.blue; label = 'UPI'; break;
-      case 'card': color = Colors.purple; label = 'Card'; break;
-      default: color = Colors.teal; label = 'Bank'; break;
+      case 'cash':
+        color = Colors.green;
+        label = 'Cash';
+        break;
+      case 'upi':
+        color = Colors.blue;
+        label = 'UPI';
+        break;
+      case 'card':
+        color = Colors.purple;
+        label = 'Card';
+        break;
+      default:
+        color = Colors.teal;
+        label = 'Bank';
+        break;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-      child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+      decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(4)),
+      child: Text(label,
+          style: TextStyle(
+              color: color, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
 }
@@ -743,32 +894,44 @@ class _InvoiceBottomSheet extends StatelessWidget {
         children: [
           const Icon(Icons.check_circle, color: AppColors.success, size: 64),
           const SizedBox(height: 16),
-          const Text('Payment Recorded ✓', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text('Payment Recorded ✓',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
+            decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border)),
             child: Column(
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(record.invoiceNumber, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(record.invoiceNumber,
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
                     Text(DateFormat('dd MMM yyyy').format(record.paymentDate)),
                   ],
                 ),
                 const Divider(height: 32),
-                _InvoiceRow(label: 'Member', value: '${record.memberName} (${record.memberCode})'),
+                _InvoiceRow(
+                    label: 'Member',
+                    value: '${record.memberName} (${record.memberCode})'),
                 const SizedBox(height: 12),
                 _InvoiceRow(label: 'Plan', value: record.planName),
                 const SizedBox(height: 12),
-                _InvoiceRow(label: 'Mode', value: record.paymentMode.toUpperCase()),
+                _InvoiceRow(
+                    label: 'Mode', value: record.paymentMode.toUpperCase()),
                 const Divider(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('Total Amount', style: TextStyle(fontSize: 16)),
-                    Text('₹${record.amount.toInt()}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                    Text('₹${record.amount.toInt()}',
+                        style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary)),
                   ],
                 ),
               ],
@@ -777,9 +940,14 @@ class _InvoiceBottomSheet extends StatelessWidget {
           const SizedBox(height: 32),
           Row(
             children: [
-              Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))),
+              Expanded(
+                  child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Done'))),
               const SizedBox(width: 16),
-              Expanded(child: ElevatedButton(onPressed: () {}, child: const Text('Share Invoice'))),
+              Expanded(
+                  child: ElevatedButton(
+                      onPressed: () {}, child: const Text('Share Invoice'))),
             ],
           ),
         ],

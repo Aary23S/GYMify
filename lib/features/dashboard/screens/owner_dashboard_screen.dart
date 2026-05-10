@@ -426,29 +426,6 @@ class OwnerDashboardScreen extends ConsumerWidget {
         'roles': [UserRole.superAdmin, UserRole.admin]
       },
       {
-        'label': 'Schedule',
-        'icon': Icons.event_note,
-        'route': '/classes',
-        'roles': [
-          UserRole.superAdmin,
-          UserRole.admin,
-          UserRole.trainer,
-          UserRole.member
-        ]
-      },
-      {
-        'label': 'Add Trainer',
-        'icon': Icons.sports,
-        'route': '/trainers',
-        'roles': [UserRole.superAdmin]
-      },
-      {
-        'label': 'Reports',
-        'icon': Icons.assessment,
-        'route': '/reports',
-        'roles': [UserRole.superAdmin, UserRole.admin]
-      },
-      {
         'label': 'Book Class',
         'icon': Icons.add_task,
         'route': '/classes',
@@ -459,12 +436,6 @@ class OwnerDashboardScreen extends ConsumerWidget {
         'icon': Icons.trending_up,
         'route': '/progress',
         'roles': [UserRole.member]
-      },
-      {
-        'label': 'Assigned',
-        'icon': Icons.assignment_ind,
-        'route': '/assigned',
-        'roles': [UserRole.trainer]
       },
     ];
 

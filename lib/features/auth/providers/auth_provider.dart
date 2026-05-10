@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_model.dart';
 
 enum LoginMethod {
-  emailPassword,
   phoneOtp,
 }
 
@@ -33,7 +32,7 @@ class AuthState {
     required this.selectedRole,
     required this.isLoggedIn,
     this.user,
-    this.loginMethod = LoginMethod.emailPassword,
+    this.loginMethod = LoginMethod.phoneOtp,
     this.enteredPhone,
     this.isLoading = false,
   });

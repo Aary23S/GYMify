@@ -154,9 +154,10 @@ class AppTheme {
         seedColor: AppColors.primary,
         primary: AppColors.primaryLight,
         secondary: AppColors.accent,
-        surface: const Color(0xFF1E1E1E),
+        surface: const Color(0xFF1A1A1A),
         onSurface: Colors.white,
         error: AppColors.danger,
+        surfaceContainerHighest: const Color(0xFF252525),
       ),
       scaffoldBackgroundColor: const Color(0xFF121212),
       textTheme: GoogleFonts.poppinsTextTheme(base.textTheme).copyWith(
@@ -171,57 +172,60 @@ class AppTheme {
         titleSmall: AppTextStyles.heading3.copyWith(color: Colors.white),
         bodyLarge: AppTextStyles.bodyLarge.copyWith(color: Colors.white),
         bodyMedium: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
-        bodySmall:
-            AppTextStyles.body.copyWith(color: Colors.white.withOpacity(0.7)),
+        bodySmall: AppTextStyles.body
+            .copyWith(color: Colors.white.withValues(alpha: 0.7)),
         labelLarge: AppTextStyles.button.copyWith(color: Colors.white),
-        labelMedium:
-            AppTextStyles.label.copyWith(color: Colors.white.withOpacity(0.7)),
+        labelMedium: AppTextStyles.label
+            .copyWith(color: Colors.white.withValues(alpha: 0.7)),
         labelSmall: AppTextStyles.caption
-            .copyWith(color: Colors.white.withOpacity(0.7)),
+            .copyWith(color: Colors.white.withValues(alpha: 0.7)),
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF1E1E1E),
+        backgroundColor: Color(0xFF1A1A1A),
         elevation: 0,
         centerTitle: true,
         foregroundColor: Colors.white,
       ),
       cardTheme: CardThemeData(
-        color: const Color(0xFF1E1E1E),
+        color: const Color(0xFF1A1A1A),
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.white.withOpacity(0.1), width: 1),
+          side:
+              BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white.withOpacity(0.05),
+        fillColor: Colors.white.withValues(alpha: 0.05),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.accent, width: 2),
         ),
         labelStyle: AppTextStyles.body.copyWith(color: Colors.white),
-        hintStyle:
-            AppTextStyles.body.copyWith(color: Colors.white.withOpacity(0.5)),
-        prefixIconColor: Colors.white.withOpacity(0.7),
-        suffixIconColor: Colors.white.withOpacity(0.7),
+        hintStyle: AppTextStyles.body
+            .copyWith(color: Colors.white.withValues(alpha: 0.5)),
+        prefixIconColor: Colors.white.withValues(alpha: 0.7),
+        suffixIconColor: Colors.white.withValues(alpha: 0.7),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: const Color(0xFF1A1A1A),
         selectedColor: AppColors.accent,
         labelStyle: AppTextStyles.label.copyWith(color: Colors.white),
         secondaryLabelStyle: AppTextStyles.label.copyWith(color: Colors.white),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: Colors.white.withOpacity(0.2)),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -239,13 +243,38 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: Colors.white,
-          side: BorderSide(color: Colors.white.withOpacity(0.2), width: 1.5),
+          side: BorderSide(
+              color: Colors.white.withValues(alpha: 0.2), width: 1.5),
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           textStyle: AppTextStyles.button.copyWith(fontWeight: FontWeight.bold),
         ),
+      ),
+      dividerTheme: DividerThemeData(
+        color: Colors.white.withValues(alpha: 0.1),
+        thickness: 1,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: const Color(0xFF1A1A1A),
+        elevation: 8,
+        indicatorColor: AppColors.accent.withValues(alpha: 0.2),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppTextStyles.label
+                .copyWith(color: AppColors.accent, fontWeight: FontWeight.bold);
+          }
+          return AppTextStyles.label
+              .copyWith(color: Colors.white.withValues(alpha: 0.7));
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: AppColors.accent, size: 28);
+          }
+          return IconThemeData(
+              color: Colors.white.withValues(alpha: 0.7), size: 24);
+        }),
       ),
     );
   }

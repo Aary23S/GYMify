@@ -16,30 +16,13 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _isPasswordVisible = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
     _phoneController.dispose();
     super.dispose();
-  }
-
-  Future<void> _handleEmailLogin() async {
-    if (_formKey.currentState!.validate()) {
-      await ref.read(authProvider.notifier).login(
-            _emailController.text,
-            _passwordController.text,
-          );
-      if (mounted) {
-        context.go('/dashboard');
-      }
-    }
   }
 
   Future<void> _handleSendOtp() async {
@@ -55,7 +38,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    final isEmailLogin = authState.loginMethod == LoginMethod.emailPassword;
 
     return Scaffold(
       backgroundColor: AppColors.primary,
@@ -83,8 +65,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           .copyWith(color: AppColors.textOnDark)),
                   Text(
                     'Your Fitness Journey Starts Here',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textOnDark.withOpacity(0.9)),
+                    style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textOnDark.withValues(alpha: 0.9)),
                   ),
                 ],
               ),
@@ -110,15 +92,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // LOGIN METHOD TOGGLE
-                      _buildMethodToggle(isEmailLogin),
-                      const SizedBox(height: 32),
-
-                      if (isEmailLogin)
-                        _buildEmailLoginForm(authState)
-                      else
-                        _buildPhoneLoginForm(authState),
-
+                      _buildPhoneLoginForm(authState),
+                      const SizedBox(height: 24),
+                      Center(
+                        child: TextButton(
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Signup flow coming soon')),
+                            );
+                          },
+                          child: RichText(
+                            text: TextSpan(
+                              text: "New gym member? ",
+                              style: AppTextStyles.bodyMedium
+                                  .copyWith(color: AppColors.textSecondary),
+                              children: [
+                                TextSpan(
+                                  text: "Sign Up",
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                    color: AppColors.accent,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 32),
                       Row(
                         children: [
@@ -150,156 +151,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildMethodToggle(bool isEmailLogin) {
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1.5),
-      ),
-      child: Stack(
-        children: [
-          AnimatedAlign(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-            alignment:
-                isEmailLogin ? Alignment.centerLeft : Alignment.centerRight,
-            child: Container(
-              width: (MediaQuery.of(context).size.width - 56) / 2,
-              decoration: BoxDecoration(
-                color: AppColors.accent,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.accent.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => ref
-                      .read(authProvider.notifier)
-                      .setLoginMethod(LoginMethod.emailPassword),
-                  child: Center(
-                    child: Text(
-                      'Email',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color:
-                            isEmailLogin ? Colors.white : AppColors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => ref
-                      .read(authProvider.notifier)
-                      .setLoginMethod(LoginMethod.phoneOtp),
-                  child: Center(
-                    child: Text(
-                      'Phone',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: !isEmailLogin
-                            ? Colors.white
-                            : AppColors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmailLoginForm(AuthState state) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Welcome Back',
-            style:
-                AppTextStyles.heading2.copyWith(color: AppColors.textPrimary)),
-        Text('Sign in to your account',
-            style: AppTextStyles.bodyMedium
-                .copyWith(color: AppColors.textSecondary)),
-        const SizedBox(height: 24),
-        TextFormField(
-          controller: _emailController,
-          style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
-          decoration: const InputDecoration(
-            labelText: 'Email Address',
-            hintText: 'owner@gymflow.com',
-            prefixIcon: Icon(Icons.email_outlined),
-          ),
-          validator: (value) {
-            if (value == null || !value.contains('@') || !value.contains('.')) {
-              return 'Enter a valid email';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: _passwordController,
-          obscureText: !_isPasswordVisible,
-          style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
-          decoration: InputDecoration(
-            labelText: 'Password',
-            hintText: '••••••••',
-            prefixIcon: const Icon(Icons.lock_outline),
-            suffixIcon: IconButton(
-              icon: Icon(
-                  _isPasswordVisible ? Icons.visibility_off : Icons.visibility),
-              onPressed: () =>
-                  setState(() => _isPasswordVisible = !_isPasswordVisible),
-            ),
-          ),
-          validator: (value) {
-            if (value == null || value.length < 6) {
-              return 'Password must be at least 6 characters';
-            }
-            return null;
-          },
-        ),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: () {},
-            child: Text('Forgot Password?',
-                style: AppTextStyles.label.copyWith(
-                    color: AppColors.accent, fontWeight: FontWeight.bold)),
-          ),
-        ),
-        const SizedBox(height: 16),
-        PrimaryButton(
-          text: 'Sign In',
-          isLoading: state.isLoading,
-          onPressed: _handleEmailLogin,
-        ),
-      ],
-    );
-  }
-
   Widget _buildPhoneLoginForm(AuthState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Phone Login',
+        Text('Login',
             style:
                 AppTextStyles.heading2.copyWith(color: AppColors.textPrimary)),
         Text('Enter your number to receive OTP',
