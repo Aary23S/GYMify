@@ -7,11 +7,12 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/otp_verify_screen.dart';
 import '../../features/dashboard/screens/main_shell.dart';
 import '../../features/members/screens/add_member_screen.dart';
-import '../../features/members/screens/members_list_screen.dart';
 import '../../features/members/screens/member_profile_screen.dart';
-import '../../features/attendance/screens/attendance_screen.dart';
-import '../../features/payments/screens/payments_screen.dart';
+import '../../features/attendance/screens/member_attendance_detail_screen.dart';
+import '../../features/attendance/screens/member_qr_screen.dart';
+import '../../features/attendance/screens/qr_scanner_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
+import '../../features/payments/screens/member_payment_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -47,8 +48,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/attendance',
         name: 'attendance',
-        builder: (context, state) =>
-            const MainShell(), // Opens shell where Attendance is a tab
+        builder: (context, state) => const MainShell(),
       ),
       GoRoute(
         path: '/payments',
@@ -63,8 +63,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/members',
         name: 'members',
-        builder: (context, state) =>
-            const MainShell(), // Should ideally navigate to the members tab in MainShell
+        builder: (context, state) => const MainShell(),
+      ),
+      GoRoute(
+        path: '/trainer/members',
+        name: 'trainer-members',
+        builder: (context, state) => const MainShell(),
       ),
       GoRoute(
         path: '/members/add',
@@ -89,13 +93,49 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/member/pay-fees',
         name: 'member-pay-fees',
+        builder: (context, state) => const MemberPaymentScreen(),
+      ),
+      GoRoute(
+        path: '/member/payment-success',
+        name: 'payment-success',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          final amount = (extra['amount'] as num?)?.toDouble() ?? 2500.0;
+          final planName = extra['planName'] as String? ?? 'Monthly Standard';
+          final mode = extra['mode'] as String? ?? 'UPI';
+          return PaymentSuccessScreen(amount: amount, planName: planName, mode: mode);
+        },
+      ),
+      GoRoute(
+        path: '/member/classes',
+        name: 'member-classes',
         builder: (context, state) => const MainShell(),
+      ),
+      GoRoute(
+        path: '/attendance/:memberId',
+        name: 'member-attendance-detail',
+        builder: (context, state) {
+          final memberId = state.pathParameters['memberId']!;
+          return MemberAttendanceDetailScreen(memberId: memberId);
+        },
+      ),
+      GoRoute(
+        path: '/my-qr',
+        name: 'my-qr',
+        builder: (context, state) => const MemberQrScreen(),
+      ),
+      GoRoute(
+        path: '/scan-qr',
+        name: 'scan-qr',
+        builder: (context, state) {
+          final action = state.uri.queryParameters['action'] ?? 'checkin';
+          return QrScannerScreen(action: action);
+        },
       ),
     ],
     redirect: (context, state) {
       final authState = ref.read(authProvider);
-      final loggingIn = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/otp-verify';
+      final loggingIn = state.matchedLocation == '/login' || state.matchedLocation == '/otp-verify';
       final inSplash = state.matchedLocation == '/';
       final inOnboarding = state.matchedLocation == '/onboarding';
 

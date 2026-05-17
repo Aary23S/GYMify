@@ -388,7 +388,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
       AppPermission.manageMembers,
       AppPermission.viewAttendance,
       AppPermission.managePayments,
-      AppPermission.manageClasses,
+      AppPermission.manageSettings,
     ];
 
     int visibleIndex = 0;
@@ -414,14 +414,32 @@ class OwnerDashboardScreen extends ConsumerWidget {
       },
       {
         'label': 'Attendance',
-        'icon': Icons.qr_code_scanner,
+        'icon': Icons.check_circle_outline,
         'route': '/attendance',
         'roles': [UserRole.owner, UserRole.trainer]
       },
       {
-        'label': 'Payment',
+        'label': 'Payment Overview',
         'icon': Icons.account_balance_wallet,
         'route': '/payments',
+        'roles': [UserRole.owner]
+      },
+      {
+        'label': 'Schedule Class',
+        'icon': Icons.calendar_today,
+        'route': '/classes',
+        'roles': [UserRole.owner, UserRole.trainer]
+      },
+      {
+        'label': 'View Reports',
+        'icon': Icons.bar_chart,
+        'route': '/reports',
+        'roles': [UserRole.owner]
+      },
+      {
+        'label': 'Add Trainer',
+        'icon': Icons.badge,
+        'route': '/trainers/add',
         'roles': [UserRole.owner]
       },
       {
@@ -473,6 +491,9 @@ class OwnerDashboardScreen extends ConsumerWidget {
               } else if (route == '/members') {
                 _switchTabByPermission(
                     context, ref, AppPermission.manageMembers);
+              } else if (route == '/payments') {
+                _switchTabByPermission(
+                    context, ref, AppPermission.managePayments);
               } else {
                 context.push(route);
               }

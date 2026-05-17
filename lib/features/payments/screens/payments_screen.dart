@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/constants/app_sizes.dart';
-import '../../../core/widgets/primary_button.dart';
-import '../../../core/widgets/status_badge.dart';
-import '../../members/models/member_model.dart';
-import '../../members/providers/members_provider.dart';
-import '../providers/payments_provider.dart';
 import '../../../dummy_data/dummy_payments.dart';
+import '../providers/payments_provider.dart';
 
 class PaymentsScreen extends ConsumerStatefulWidget {
   const PaymentsScreen({super.key});
@@ -19,19 +14,8 @@ class PaymentsScreen extends ConsumerStatefulWidget {
   ConsumerState<PaymentsScreen> createState() => _PaymentsScreenState();
 }
 
-class _PaymentsScreenState extends ConsumerState<PaymentsScreen>
-    with SingleTickerProviderStateMixin {
+class _PaymentsScreenState extends ConsumerState<PaymentsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final _collectFormKey = GlobalKey<FormState>();
-
-  // Collect Tab State
-  Member? _selectedMember;
-  String? _selectedPlan;
-  final _amountController = TextEditingController();
-  String _paymentMode = 'cash';
-  final _refController = TextEditingController();
-  DateTime _paymentDate = DateTime.now();
-  final _notesController = TextEditingController();
 
   @override
   void initState() {
@@ -42,763 +26,367 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen>
   @override
   void dispose() {
     _tabController.dispose();
-    _amountController.dispose();
-    _refController.dispose();
-    _notesController.dispose();
     super.dispose();
-  }
-
-  void _prePopulateCollect(PendingRenewal renewal) {
-    final members = ref.read(membersProvider);
-    final member = members.firstWhere((m) => m.id == renewal.memberId);
-
-    setState(() {
-      _selectedMember = member;
-      _selectedPlan = renewal.currentPlan;
-      _amountController.text = renewal.amount.toInt().toString();
-      _tabController.animateTo(1);
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(paymentsProvider);
 
+    // Calculate dynamic values for top summary cards
+    final dueThisWeekList = state.pendingRenewals.where((r) => r.daysUntilExpiry <= 7).toList();
+    final expectedAmount = dueThisWeekList.fold(0.0, (sum, r) => sum + r.amount);
+
+    final collected30Days = state.payments.fold(0.0, (sum, p) => sum + p.amount);
+    final txnCount = state.payments.length;
+
+    final expiring7DaysCount = state.pendingRenewals.where((r) => r.daysUntilExpiry >= 0 && r.daysUntilExpiry <= 7).length;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Payments & Billing'),
+        title: const Text('Payments Overview', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
         backgroundColor: Colors.white,
         elevation: 0,
+        centerTitle: false,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(140),
-          child: Column(
-            children: [
-              _buildRevenueSummary(state),
-              TabBar(
-                controller: _tabController,
-                labelColor: AppColors.accent,
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: AppColors.accent,
-                tabs: [
-                  Tab(text: 'Pending (${state.pendingRenewals.length})'),
-                  const Tab(text: 'Collect'),
-                  const Tab(text: 'History'),
-                ],
-              ),
-            ],
+          preferredSize: const Size.fromHeight(150),
+          child: Container(
+            color: Colors.white,
+            child: Column(
+              children: [
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      _SummaryCard(
+                        title: "Due This Week",
+                        value: "${dueThisWeekList.length} members",
+                        icon: Icons.schedule,
+                        iconColor: Colors.orange,
+                        subtext: "₹${NumberFormat('#,##,000').format(expectedAmount)} expected",
+                      ),
+                      _SummaryCard(
+                        title: "Collected (30 days)",
+                        value: "₹${NumberFormat('#,##,000').format(collected30Days)}",
+                        icon: Icons.currency_rupee,
+                        iconColor: Colors.green,
+                        subtext: "$txnCount transactions",
+                      ),
+                      _SummaryCard(
+                        title: "Expiring (7 days)",
+                        value: "$expiring7DaysCount members",
+                        icon: Icons.event_busy,
+                        iconColor: Colors.red,
+                        subtext: "Renew reminders sent: 3",
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
+                  ),
+                  child: TabBar(
+                    controller: _tabController,
+                    labelColor: AppColors.accent,
+                    unselectedLabelColor: Colors.grey[600],
+                    indicatorColor: AppColors.accent,
+                    indicatorWeight: 3,
+                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    tabs: const [
+                      Tab(text: 'Due & Expiring'),
+                      Tab(text: '30-Day History'),
+                      Tab(text: 'Analytics'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _PendingRenewalsTab(
-            renewals: state.pendingRenewals,
-            onCollect: _prePopulateCollect,
-          ),
-          _CollectPaymentTab(
-            formKey: _collectFormKey,
-            selectedMember: _selectedMember,
-            onMemberSelected: (m) => setState(() {
-              _selectedMember = m;
-              _selectedPlan = m.planName;
-              _amountController.text = m.planPrice.toInt().toString();
-            }),
-            selectedPlan: _selectedPlan,
-            onPlanChanged: (p, price) => setState(() {
-              _selectedPlan = p;
-              _amountController.text = price.toInt().toString();
-            }),
-            amountController: _amountController,
-            paymentMode: _paymentMode,
-            onModeChanged: (m) => setState(() => _paymentMode = m),
-            refController: _refController,
-            paymentDate: _paymentDate,
-            onDateTap: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: _paymentDate,
-                firstDate: DateTime.now().subtract(const Duration(days: 30)),
-                lastDate: DateTime.now(),
-              );
-              if (picked != null) setState(() => _paymentDate = picked);
-            },
-            notesController: _notesController,
-            onSubmit: _handleRecordPayment,
-            isRecording: state.isRecordingPayment,
-          ),
-          _PaymentHistoryTab(
+          _DueAndExpiringTab(renewals: state.pendingRenewals),
+          _HistoryTab(
             payments: state.payments,
             selectedMode: state.selectedMode,
-            onModeFilter: (mode) =>
-                ref.read(paymentsProvider.notifier).setModeFilter(mode),
+            onModeFilter: (mode) => ref.read(paymentsProvider.notifier).setModeFilter(mode),
           ),
+          _AnalyticsTab(payments: state.payments),
         ],
       ),
     );
   }
-
-  Widget _buildRevenueSummary(PaymentsState state) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          _SummaryCard(
-            label: 'Today',
-            value: '₹${state.stats.todayTotal.toInt()}',
-            subtitle: '${state.stats.todayTransactions} transactions',
-            icon: Icons.currency_rupee,
-            iconColor: Colors.green,
-            accentColor: AppColors.success,
-          ),
-          _SummaryCard(
-            label: 'This Month',
-            value:
-                '₹${NumberFormat('#,##,000').format(state.stats.monthTotal)}',
-            subtitle: '${state.stats.monthTransactions} transactions',
-            icon: Icons.calendar_month,
-            iconColor: Colors.blue,
-            accentColor: AppColors.primary,
-          ),
-          _SummaryCard(
-            label: 'Pending',
-            value: '${state.stats.pendingCount} members',
-            subtitle: 'Need renewal',
-            icon: Icons.schedule,
-            iconColor: Colors.orange,
-            accentColor: AppColors.warning,
-            onTap: () => _tabController.animateTo(0),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _handleRecordPayment() async {
-    if (_collectFormKey.currentState!.validate()) {
-      final selectedPlanData =
-          _plans.firstWhere((p) => p['name'] == _selectedPlan);
-
-      final record = PaymentRecord(
-        id: const Uuid().v4(),
-        memberId: _selectedMember!.id,
-        memberName: _selectedMember!.name,
-        memberCode: _selectedMember!.memberCode,
-        planName: _selectedPlan!,
-        amount: double.parse(_amountController.text),
-        paymentMode: _paymentMode,
-        paymentDate: _paymentDate,
-        transactionRef:
-            _refController.text.isNotEmpty ? _refController.text : null,
-        invoiceNumber:
-            'INV-2026-${(ref.read(paymentsProvider).payments.length + 1).toString().padLeft(4, '0')}',
-      );
-
-      await ref.read(paymentsProvider.notifier).recordPayment(record);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                '✓ Payment of ₹${record.amount.toInt()} recorded for ${record.memberName}'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        _showInvoiceBottomSheet(record);
-        _resetCollectForm();
-      }
-    }
-  }
-
-  void _resetCollectForm() {
-    setState(() {
-      _selectedMember = null;
-      _selectedPlan = null;
-      _amountController.clear();
-      _paymentMode = 'cash';
-      _refController.clear();
-      _paymentDate = DateTime.now();
-      _notesController.clear();
-    });
-  }
-
-  void _showInvoiceBottomSheet(PaymentRecord record) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => _InvoiceBottomSheet(record: record),
-    );
-  }
-
-  final List<Map<String, dynamic>> _plans = [
-    {'name': 'Monthly Basic', 'price': 1500.0},
-    {'name': 'Monthly Standard', 'price': 2500.0},
-    {'name': 'Quarterly Premium', 'price': 6500.0},
-    {'name': 'Annual Elite', 'price': 22000.0},
-  ];
 }
 
 class _SummaryCard extends StatelessWidget {
-  final String label;
+  final String title;
   final String value;
-  final String subtitle;
   final IconData icon;
   final Color iconColor;
-  final Color accentColor;
-  final VoidCallback? onTap;
+  final String subtext;
 
   const _SummaryCard({
-    required this.label,
+    required this.title,
     required this.value,
-    required this.subtitle,
     required this.icon,
     required this.iconColor,
-    required this.accentColor,
-    this.onTap,
+    required this.subtext,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border(left: BorderSide(color: accentColor, width: 4)),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 2))
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 12,
-                  backgroundColor: iconColor.withValues(alpha: 0.1),
-                  child: Icon(icon, size: 14, color: iconColor),
-                ),
-                const SizedBox(width: 8),
-                Text(label,
-                    style: AppTextStyles.caption
-                        .copyWith(color: Colors.grey[600])),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(value, style: AppTextStyles.heading3.copyWith(fontSize: 18)),
-            Text(subtitle,
-                style: AppTextStyles.caption
-                    .copyWith(fontSize: 10, color: Colors.grey)),
-          ],
-        ),
+    return Container(
+      width: 200,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(title, style: AppTextStyles.caption.copyWith(color: Colors.grey[600], fontWeight: FontWeight.w600)),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1), shape: BoxShape.circle),
+                child: Icon(icon, size: 16, color: iconColor),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(value, style: AppTextStyles.heading3.copyWith(fontSize: 18, color: AppColors.textPrimary)),
+          const SizedBox(height: 4),
+          Text(subtext, style: AppTextStyles.caption.copyWith(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+        ],
       ),
     );
   }
 }
 
-class _CollectPaymentTab extends StatelessWidget {
-  final GlobalKey<FormState> formKey;
-  final Member? selectedMember;
-  final Function(Member) onMemberSelected;
-  final String? selectedPlan;
-  final Function(String, double) onPlanChanged;
-  final TextEditingController amountController;
-  final String paymentMode;
-  final Function(String) onModeChanged;
-  final TextEditingController refController;
-  final DateTime paymentDate;
-  final VoidCallback onDateTap;
-  final TextEditingController notesController;
-  final VoidCallback onSubmit;
-  final bool isRecording;
+// ==========================================
+// TAB 1: DUE & EXPIRING
+// ==========================================
+class _DueAndExpiringTab extends StatelessWidget {
+  final List<PendingRenewal> renewals;
 
-  const _CollectPaymentTab({
-    required this.formKey,
-    required this.selectedMember,
-    required this.onMemberSelected,
-    required this.selectedPlan,
-    required this.onPlanChanged,
-    required this.amountController,
-    required this.paymentMode,
-    required this.onModeChanged,
-    required this.refController,
-    required this.paymentDate,
-    required this.onDateTap,
-    required this.notesController,
-    required this.onSubmit,
-    required this.isRecording,
-  });
+  const _DueAndExpiringTab({required this.renewals});
 
   @override
   Widget build(BuildContext context) {
+    final overdueList = renewals.where((r) => r.daysUntilExpiry < 0).toList();
+    overdueList.sort((a, b) => a.daysUntilExpiry.compareTo(b.daysUntilExpiry));
+
+    final expiringThisWeek = renewals.where((r) => r.daysUntilExpiry >= 0 && r.daysUntilExpiry <= 7).toList();
+    expiringThisWeek.sort((a, b) => a.daysUntilExpiry.compareTo(b.daysUntilExpiry));
+
+    final expiringNextWeek = renewals.where((r) => r.daysUntilExpiry >= 8 && r.daysUntilExpiry <= 14).toList();
+    expiringNextWeek.sort((a, b) => a.daysUntilExpiry.compareTo(b.daysUntilExpiry));
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: Form(
-        key: formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _MemberSearchField(onSelected: onMemberSelected),
-            if (selectedMember != null) ...[
-              const SizedBox(height: 16),
-              _SelectedMemberCard(member: selectedMember!),
-              const SizedBox(height: 24),
-              _buildPaymentForm(),
-            ],
-            const SizedBox(height: 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (overdueList.isNotEmpty) ...[
+            _buildSectionHeader("Overdue (already expired)", Colors.red[700]!, Icons.error_outline),
+            const SizedBox(height: 12),
+            ...overdueList.map((r) => _RenewalCard(renewal: r, type: _RenewalType.overdue)),
+            const SizedBox(height: 24),
           ],
-        ),
+          if (expiringThisWeek.isNotEmpty) ...[
+            _buildSectionHeader("Expiring This Week", Colors.orange[800]!, Icons.warning_amber),
+            const SizedBox(height: 12),
+            ...expiringThisWeek.map((r) => _RenewalCard(renewal: r, type: _RenewalType.expiringThisWeek)),
+            const SizedBox(height: 24),
+          ],
+          if (expiringNextWeek.isNotEmpty) ...[
+            _buildSectionHeader("Expiring Next Week", Colors.amber[700]!, Icons.schedule),
+            const SizedBox(height: 12),
+            ...expiringNextWeek.map((r) => _RenewalCard(renewal: r, type: _RenewalType.expiringNextWeek)),
+            const SizedBox(height: 24),
+          ],
+          if (overdueList.isEmpty && expiringThisWeek.isEmpty && expiringNextWeek.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 64),
+              child: Center(child: Text("No upcoming dues or expirations 🎉", style: TextStyle(color: Colors.grey[600], fontSize: 16))),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _buildPaymentForm() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildSectionHeader(String title, Color color, IconData icon) {
+    return Row(
       children: [
-        DropdownButtonFormField<String>(
-          value: selectedPlan,
-          isExpanded: true,
-          decoration: const InputDecoration(
-              labelText: 'Select Plan *',
-              prefixIcon: Icon(Icons.fitness_center)),
-          items: [
-            {'name': 'Monthly Basic', 'price': 1500.0},
-            {'name': 'Monthly Standard', 'price': 2500.0},
-            {'name': 'Quarterly Premium', 'price': 6500.0},
-            {'name': 'Annual Elite', 'price': 22000.0},
-          ]
-              .map((p) => DropdownMenuItem(
-                    value: p['name'] as String,
-                    child: Text(
-                      '${p['name']} - ₹${(p['price'] as double).toInt()}',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ))
-              .toList(),
-          onChanged: (val) {
-            if (val != null) {
-              final price = [
-                {'name': 'Monthly Basic', 'price': 1500.0},
-                {'name': 'Monthly Standard', 'price': 2500.0},
-                {'name': 'Quarterly Premium', 'price': 6500.0},
-                {'name': 'Annual Elite', 'price': 22000.0},
-              ].firstWhere((p) => p['name'] == val)['price'] as double;
-              onPlanChanged(val, price);
-            }
-          },
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: amountController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-              labelText: 'Amount (₹) *',
-              prefixIcon: Icon(Icons.currency_rupee)),
-        ),
-        const SizedBox(height: 24),
-        const Text('Payment Mode *',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        _ModeChips(selectedMode: paymentMode, onModeChanged: onModeChanged),
-        if (paymentMode != 'cash') ...[
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: refController,
-            decoration: const InputDecoration(
-                labelText: 'Transaction ID / Ref (optional)',
-                prefixIcon: Icon(Icons.tag)),
-          ),
-        ],
-        const SizedBox(height: 16),
-        TextFormField(
-          readOnly: true,
-          onTap: onDateTap,
-          decoration: const InputDecoration(
-              labelText: 'Payment Date',
-              prefixIcon: Icon(Icons.calendar_today)),
-          controller: TextEditingController(
-              text: DateFormat('dd MMM yyyy').format(paymentDate)),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: notesController,
-          maxLines: 2,
-          decoration: const InputDecoration(labelText: 'Notes (optional)'),
-        ),
-        const SizedBox(height: 32),
-        PrimaryButton(
-          text: 'Record Payment ₹${amountController.text}',
-          onPressed: onSubmit,
-          isLoading: isRecording,
-        ),
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 8),
+        Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
       ],
     );
   }
 }
 
-class _MemberSearchField extends ConsumerWidget {
-  final Function(Member) onSelected;
+enum _RenewalType { overdue, expiringThisWeek, expiringNextWeek }
 
-  const _MemberSearchField({required this.onSelected});
+class _RenewalCard extends StatelessWidget {
+  final PendingRenewal renewal;
+  final _RenewalType type;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Autocomplete<Member>(
-      displayStringForOption: (m) => m.name,
-      optionsBuilder: (textEditingValue) {
-        if (textEditingValue.text.isEmpty)
-          return const Iterable<Member>.empty();
-        final members = ref.read(membersProvider);
-        return members.where((m) =>
-            m.name
-                .toLowerCase()
-                .contains(textEditingValue.text.toLowerCase()) ||
-            m.memberCode
-                .toLowerCase()
-                .contains(textEditingValue.text.toLowerCase()));
-      },
-      onSelected: onSelected,
-      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        return TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          decoration: const InputDecoration(
-            labelText: 'Select Member',
-            prefixIcon: Icon(Icons.search),
-            border: OutlineInputBorder(),
-          ),
-        );
-      },
-      optionsViewBuilder: (context, onSelected, options) {
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 4,
-            child: SizedBox(
-              width: MediaQuery.of(context).size.width - 32,
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                itemCount: options.length,
-                itemBuilder: (context, index) {
-                  final m = options.elementAt(index);
-                  return ListTile(
-                    title: Text(m.name),
-                    subtitle: Text(m.memberCode),
-                    onTap: () => onSelected(m),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _SelectedMemberCard extends StatelessWidget {
-  final Member member;
-
-  const _SelectedMemberCard({required this.member});
+  const _RenewalCard({required this.renewal, required this.type});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.05),
+    Color borderColor;
+    Color statusBgColor;
+    Color statusTextColor;
+    String statusText;
+
+    switch (type) {
+      case _RenewalType.overdue:
+        borderColor = Colors.red[700]!;
+        statusBgColor = Colors.red.withValues(alpha: 0.1);
+        statusTextColor = Colors.red[800]!;
+        statusText = "Expired ${renewal.daysUntilExpiry.abs()} days ago";
+        break;
+      case _RenewalType.expiringThisWeek:
+        borderColor = Colors.orange[800]!;
+        statusBgColor = Colors.orange.withValues(alpha: 0.1);
+        statusTextColor = Colors.orange[900]!;
+        statusText = renewal.daysUntilExpiry == 0 ? "Expires today" : "Expires in ${renewal.daysUntilExpiry} days";
+        break;
+      case _RenewalType.expiringNextWeek:
+        borderColor = Colors.amber[600]!;
+        statusBgColor = Colors.amber.withValues(alpha: 0.15);
+        statusTextColor = Colors.amber[900]!;
+        statusText = "Expires in ${renewal.daysUntilExpiry} days";
+        break;
+    }
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+        side: BorderSide(color: AppColors.border),
       ),
-      child: Row(
-        children: [
-          CircleAvatar(child: Text(member.initials)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border(left: BorderSide(color: borderColor, width: 5)),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: borderColor.withValues(alpha: 0.1),
+              child: Text(
+                renewal.memberName.trim().isNotEmpty ? renewal.memberName.trim()[0].toUpperCase() : '?',
+                style: TextStyle(color: borderColor, fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(renewal.memberName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text("${renewal.memberCode} · ${renewal.currentPlan}", style: AppTextStyles.caption.copyWith(color: Colors.grey[600])),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: statusBgColor, borderRadius: BorderRadius.circular(6)),
+                    child: Text(statusText, style: TextStyle(color: statusTextColor, fontWeight: FontWeight.bold, fontSize: 11)),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(member.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text('${member.memberCode} · ${member.planName}',
-                    style: AppTextStyles.caption),
+                Text(
+                  "₹${NumberFormat('#,##,000').format(renewal.amount)}",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: type == _RenewalType.overdue ? Colors.red[700] : AppColors.textPrimary),
+                ),
+                if (type == _RenewalType.overdue)
+                  Text("DUE", style: TextStyle(color: Colors.red[700], fontWeight: FontWeight.bold, fontSize: 12))
+                else
+                  Text("Expected", style: TextStyle(color: Colors.grey[600], fontSize: 12)),
               ],
             ),
-          ),
-          StatusBadge(status: member.status),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _ModeChips extends StatelessWidget {
-  final String selectedMode;
-  final Function(String) onModeChanged;
-
-  const _ModeChips({required this.selectedMode, required this.onModeChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    final modes = [
-      {'id': 'cash', 'label': 'Cash', 'icon': '💵'},
-      {'id': 'upi', 'label': 'UPI', 'icon': '📱'},
-      {'id': 'card', 'label': 'Card', 'icon': '💳'},
-      {'id': 'bank_transfer', 'label': 'Bank', 'icon': '🏦'},
-    ];
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: modes.map((m) {
-        final isSelected = selectedMode == m['id'];
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => onModeChanged(m['id']!),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.accent : Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                    color: isSelected ? AppColors.accent : AppColors.primary),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                            color: AppColors.accent.withValues(alpha: 0.3),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2))
-                      ]
-                    : null,
-              ),
-              child: Column(
-                children: [
-                  Text(m['icon']!, style: const TextStyle(fontSize: 16)),
-                  Text(m['label']!,
-                      style: TextStyle(
-                          fontSize: 10,
-                          color: isSelected ? Colors.white : AppColors.primary,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal)),
-                ],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
-class _PendingRenewalsTab extends StatelessWidget {
-  final List<PendingRenewal> renewals;
-  final Function(PendingRenewal) onCollect;
-
-  const _PendingRenewalsTab({required this.renewals, required this.onCollect});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: renewals.length,
-      itemBuilder: (context, index) {
-        final r = renewals[index];
-        final isExpired = r.daysUntilExpiry < 0;
-        final isCritical = r.daysUntilExpiry <= 1;
-
-        return Card(
-          elevation: 0,
-          margin: const EdgeInsets.only(bottom: 12),
-          color: isExpired
-              ? AppColors.danger.withValues(alpha: 0.06)
-              : isCritical
-                  ? AppColors.warning.withValues(alpha: 0.06)
-                  : Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-                color: isExpired
-                    ? AppColors.danger.withValues(alpha: 0.1)
-                    : isCritical
-                        ? AppColors.warning.withValues(alpha: 0.1)
-                        : AppColors.border),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border(
-                  left: BorderSide(
-                      color: isExpired
-                          ? AppColors.danger
-                          : isCritical
-                              ? AppColors.warning
-                              : AppColors.primary,
-                      width: 4)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  CircleAvatar(child: Text(r.memberName[0])),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(r.memberName,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        Text('${r.memberCode} · ${r.currentPlan}',
-                            style: AppTextStyles.caption),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(isExpired ? Icons.error : Icons.schedule,
-                                size: 14,
-                                color: isExpired
-                                    ? AppColors.danger
-                                    : isCritical
-                                        ? AppColors.warning
-                                        : Colors.grey),
-                            const SizedBox(width: 4),
-                            Text(
-                              isExpired
-                                  ? 'Expired ${r.daysUntilExpiry.abs()} days ago'
-                                  : r.daysUntilExpiry == 0
-                                      ? 'Expires today'
-                                      : r.daysUntilExpiry == 1
-                                          ? 'Expires tomorrow'
-                                          : 'Expires in ${r.daysUntilExpiry} days',
-                              style: AppTextStyles.caption.copyWith(
-                                  color: isExpired
-                                      ? AppColors.danger
-                                      : isCritical
-                                          ? AppColors.warning
-                                          : Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text('₹${r.amount.toInt()}',
-                          style: AppTextStyles.heading3.copyWith(
-                              fontSize: 16,
-                              color: isExpired ? AppColors.danger : null)),
-                      const SizedBox(height: 4),
-                      OutlinedButton(
-                        onPressed: () => onCollect(r),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: isExpired
-                              ? AppColors.danger
-                              : isCritical
-                                  ? AppColors.warning
-                                  : AppColors.primary,
-                          side: BorderSide(
-                              color: isExpired
-                                  ? AppColors.danger
-                                  : isCritical
-                                      ? AppColors.warning
-                                      : AppColors.primary),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 0),
-                          minimumSize: const Size(0, 32),
-                        ),
-                        child: const Text('Collect',
-                            style: TextStyle(fontSize: 12)),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _PaymentHistoryTab extends StatelessWidget {
+// ==========================================
+// TAB 2: 30-DAY HISTORY
+// ==========================================
+class _HistoryTab extends StatelessWidget {
   final List<PaymentRecord> payments;
   final String? selectedMode;
   final Function(String?) onModeFilter;
 
-  const _PaymentHistoryTab(
-      {required this.payments,
-      required this.selectedMode,
-      required this.onModeFilter});
+  const _HistoryTab({required this.payments, required this.selectedMode, required this.onModeFilter});
 
   @override
   Widget build(BuildContext context) {
-    final filtered = selectedMode == null
-        ? payments
-        : payments.where((p) => p.paymentMode == selectedMode).toList();
+    final filtered = selectedMode == null ? payments : payments.where((p) => p.paymentMode == selectedMode).toList();
+
+    final totalAmount = filtered.fold(0.0, (sum, p) => sum + p.amount);
 
     return Column(
       children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              FilterChip(
-                  label: const Text('All'),
-                  selected: selectedMode == null,
-                  onSelected: (_) => onModeFilter(null)),
-              const SizedBox(width: 8),
-              FilterChip(
-                  label: const Text('Cash'),
-                  selected: selectedMode == 'cash',
-                  onSelected: (_) => onModeFilter('cash')),
-              const SizedBox(width: 8),
-              FilterChip(
-                  label: const Text('UPI'),
-                  selected: selectedMode == 'upi',
-                  onSelected: (_) => onModeFilter('upi')),
-              const SizedBox(width: 8),
-              FilterChip(
-                  label: const Text('Card'),
-                  selected: selectedMode == 'card',
-                  onSelected: (_) => onModeFilter('card')),
-              const SizedBox(width: 8),
-              FilterChip(
-                  label: const Text('Bank'),
-                  selected: selectedMode == 'bank_transfer',
-                  onSelected: (_) => onModeFilter('bank_transfer')),
-            ],
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          color: Colors.white,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildChip('All', null),
+                const SizedBox(width: 8),
+                _buildChip('UPI', 'upi'),
+                const SizedBox(width: 8),
+                _buildChip('Cash', 'cash'),
+                const SizedBox(width: 8),
+                _buildChip('Card', 'card'),
+                const SizedBox(width: 8),
+                _buildChip('Bank', 'bank_transfer'),
+              ],
+            ),
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-                'Showing ${filtered.length} payments · Total: ₹${filtered.fold(0.0, (sum, p) => sum + p.amount).toInt()}',
-                style: AppTextStyles.caption),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("${filtered.length} payments", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[700])),
+              Text("₹${NumberFormat('#,##,000').format(totalAmount)} total", style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 16)),
+            ],
           ),
         ),
-        const SizedBox(height: 12),
         Expanded(
           child: filtered.isEmpty
-              ? const Center(child: Text('No payments found'))
+              ? Center(child: Text('No payment records found', style: TextStyle(color: Colors.grey[600])))
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: filtered.length,
@@ -807,34 +395,35 @@ class _PaymentHistoryTab extends StatelessWidget {
                     return Card(
                       elevation: 0,
                       margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: const BorderSide(color: AppColors.border)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: AppColors.border)),
                       child: ListTile(
-                        title: Text(p.memberName,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                          child: Text(p.memberName[0].toUpperCase(), style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                        ),
+                        title: Row(
+                          children: [
+                            Expanded(child: Text(p.memberName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                            const Icon(Icons.verified, color: Colors.green, size: 16),
+                          ],
+                        ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('${p.memberCode} · ${p.planName}',
-                                style: AppTextStyles.caption),
-                            Text(
-                                DateFormat('dd MMM yyyy, hh:mm a')
-                                    .format(p.paymentDate),
-                                style: AppTextStyles.caption
-                                    .copyWith(fontSize: 10)),
+                            const SizedBox(height: 2),
+                            Text("${p.memberCode} · ${p.planName}", style: AppTextStyles.caption.copyWith(color: Colors.grey[600])),
+                            const SizedBox(height: 4),
+                            Text(DateFormat('dd MMM yyyy, hh:mm a').format(p.paymentDate), style: TextStyle(fontSize: 11, color: Colors.grey[500])),
                           ],
                         ),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('₹${p.amount.toInt()}',
-                                style: AppTextStyles.heading3
-                                    .copyWith(fontSize: 16)),
-                            const SizedBox(height: 4),
-                            _ModeBadge(mode: p.paymentMode),
+                            Text('₹${NumberFormat('#,##,000').format(p.amount)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
+                            const SizedBox(height: 6),
+                            _buildModeBadge(p.paymentMode),
                           ],
                         ),
                       ),
@@ -845,141 +434,270 @@ class _PaymentHistoryTab extends StatelessWidget {
       ],
     );
   }
-}
 
-class _ModeBadge extends StatelessWidget {
-  final String mode;
-  const _ModeBadge({required this.mode});
+  Widget _buildChip(String label, String? mode) {
+    final isSelected = selectedMode == mode;
+    return FilterChip(
+      label: Text(label, style: TextStyle(color: isSelected ? Colors.white : AppColors.textPrimary, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+      selected: isSelected,
+      onSelected: (_) => onModeFilter(mode),
+      backgroundColor: Colors.grey[100],
+      selectedColor: AppColors.accent,
+      checkmarkColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: isSelected ? AppColors.accent : AppColors.border)),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    Color color;
-    String label;
+  Widget _buildModeBadge(String mode) {
+    Color bg;
+    Color fg;
+    String text;
+
     switch (mode) {
-      case 'cash':
-        color = Colors.green;
-        label = 'Cash';
-        break;
       case 'upi':
-        color = Colors.blue;
-        label = 'UPI';
+        bg = Colors.blue.withValues(alpha: 0.15);
+        fg = Colors.blue[800]!;
+        text = 'UPI';
+        break;
+      case 'cash':
+        bg = Colors.green.withValues(alpha: 0.15);
+        fg = Colors.green[800]!;
+        text = 'Cash';
         break;
       case 'card':
-        color = Colors.purple;
-        label = 'Card';
+        bg = Colors.purple.withValues(alpha: 0.15);
+        fg = Colors.purple[800]!;
+        text = 'Card';
         break;
       default:
-        color = Colors.teal;
-        label = 'Bank';
+        bg = Colors.teal.withValues(alpha: 0.15);
+        fg = Colors.teal[800]!;
+        text = 'Bank';
         break;
     }
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(4)),
-      child: Text(label,
-          style: TextStyle(
-              color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Text(text, style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
 }
 
-class _InvoiceBottomSheet extends StatelessWidget {
-  final PaymentRecord record;
-  const _InvoiceBottomSheet({required this.record});
+// ==========================================
+// TAB 3: ANALYTICS
+// ==========================================
+class _AnalyticsTab extends StatelessWidget {
+  final List<PaymentRecord> payments;
+
+  const _AnalyticsTab({required this.payments});
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle, color: AppColors.success, size: 64),
-          const SizedBox(height: 16),
-          const Text('Payment Recorded ✓',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 24),
+          // Revenue Trend Chart
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border)),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4)),
+              ],
+            ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(record.invoiceNumber,
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text(DateFormat('dd MMM yyyy').format(record.paymentDate)),
-                  ],
+                const Text("Revenue Trend (Last 12 Months)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 220,
+                  child: BarChart(
+                    BarChartData(
+                      gridData: const FlGridData(show: false),
+                      borderData: FlBorderData(show: false),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (value, meta) {
+                              const months = ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May'];
+                              final index = value.toInt();
+                              if (index >= 0 && index < months.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(months[index], style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            reservedSize: 36,
+                            showTitles: true,
+                            getTitlesWidget: (value, meta) {
+                              if (value == 0) return const SizedBox.shrink();
+                              return Text('${(value / 1000).toInt()}k', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey));
+                            },
+                          ),
+                        ),
+                      ),
+                      barGroups: [
+                        _buildBar(0, 80000),
+                        _buildBar(1, 95000),
+                        _buildBar(2, 110000),
+                        _buildBar(3, 105000),
+                        _buildBar(4, 120000),
+                        _buildBar(5, 115000),
+                        _buildBar(6, 130000),
+                        _buildBar(7, 125000),
+                        _buildBar(8, 140000),
+                        _buildBar(9, 135000),
+                        _buildBar(10, 150000),
+                        _buildBar(11, 124000),
+                      ],
+                    ),
+                  ),
                 ),
-                const Divider(height: 32),
-                _InvoiceRow(
-                    label: 'Member',
-                    value: '${record.memberName} (${record.memberCode})'),
-                const SizedBox(height: 12),
-                _InvoiceRow(label: 'Plan', value: record.planName),
-                const SizedBox(height: 12),
-                _InvoiceRow(
-                    label: 'Mode', value: record.paymentMode.toUpperCase()),
-                const Divider(height: 32),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Plan Distribution Pie Chart
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4)),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Plan Revenue Contribution", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
+                const SizedBox(height: 24),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total Amount', style: TextStyle(fontSize: 16)),
-                    Text('₹${record.amount.toInt()}',
-                        style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary)),
+                    SizedBox(
+                      height: 150,
+                      width: 150,
+                      child: PieChart(
+                        PieChartData(
+                          sectionsSpace: 2,
+                          centerSpaceRadius: 35,
+                          sections: [
+                            PieChartSectionData(color: Colors.blue[700], value: 40, title: '40%', radius: 35, titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                            PieChartSectionData(color: AppColors.accent, value: 30, title: '30%', radius: 35, titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                            PieChartSectionData(color: Colors.teal[600], value: 20, title: '20%', radius: 35, titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                            PieChartSectionData(color: Colors.purple[600], value: 10, title: '10%', radius: 35, titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLegendItem(Colors.blue[700]!, "Annual Elite", "40%"),
+                          const SizedBox(height: 8),
+                          _buildLegendItem(AppColors.accent, "Quarterly Premium", "30%"),
+                          const SizedBox(height: 8),
+                          _buildLegendItem(Colors.teal[600]!, "Monthly Standard", "20%"),
+                          const SizedBox(height: 8),
+                          _buildLegendItem(Colors.purple[600]!, "Monthly Basic", "10%"),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 32),
-          Row(
-            children: [
-              Expanded(
-                  child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Done'))),
-              const SizedBox(width: 16),
-              Expanded(
-                  child: ElevatedButton(
-                      onPressed: () {}, child: const Text('Share Invoice'))),
-            ],
+          const SizedBox(height: 24),
+
+          // Collection Rate Segmented Bar
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4)),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Collection Rate", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
+                const SizedBox(height: 16),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    height: 16,
+                    child: Row(
+                      children: [
+                        Expanded(flex: 78, child: Container(color: Colors.green)),
+                        Expanded(flex: 15, child: Container(color: Colors.orange)),
+                        Expanded(flex: 7, child: Container(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("Collected on time: 78%", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
+                    Text("Late: 15%", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
+                    Text("Pending: 7%", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ],
+                ),
+              ],
+            ),
           ),
+          const SizedBox(height: 40),
         ],
       ),
     );
   }
-}
 
-class _InvoiceRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _InvoiceRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.grey)),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
+  BarChartGroupData _buildBar(int x, double y) {
+    return BarChartGroupData(
+      x: x,
+      barRods: [
+        BarChartRodData(
+          toY: y,
+          color: AppColors.accent,
+          width: 14,
+          borderRadius: const BorderRadius.only(topLeft: Radius.circular(6), topRight: Radius.circular(6)),
         ),
+      ],
+    );
+  }
+
+  Widget _buildLegendItem(Color color, String label, String pct) {
+    return Row(
+      children: [
+        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
+        const SizedBox(width: 8),
+        Expanded(child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary))),
+        Text(pct, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
       ],
     );
   }

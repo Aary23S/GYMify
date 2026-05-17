@@ -1,36 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/constants/app_sizes.dart';
 import '../../members/providers/members_provider.dart';
 import '../../members/models/member_model.dart';
 import '../providers/attendance_provider.dart';
 
-class AttendanceScreen extends ConsumerWidget {
+class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AttendanceScreen> createState() => _AttendanceScreenState();
+}
+
+class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
+  bool _showSearchBar = false;
+
+  @override
+  Widget build(BuildContext context) {
     final attendanceState = ref.watch(attendanceProvider);
-    final totalMembersCount = 248; // Dummy total for percentage
-    final checkInCount = attendanceState.todaysRecords.length;
-    final attendancePercentage =
-        (checkInCount / totalMembersCount * 100).toStringAsFixed(1);
+    final todayRecords = attendanceState.todayRecords;
+
+    final presentToday = todayRecords.length;
+    final checkedOut = todayRecords.where((r) => r.checkOutTime != null).length;
+    final stillInside = presentToday - checkedOut;
+    const totalMembers = 25;
+    final double percentage = (presentToday / totalMembers * 100).toDouble().clamp(0.0, 100.0);
 
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.background,
         appBar: AppBar(
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Attendance'),
+              const Text('Attendance', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
               Text(
                 DateFormat('EEEE, d MMMM yyyy').format(DateTime.now()),
-                style: AppTextStyles.caption.copyWith(color: Colors.grey),
+                style: AppTextStyles.caption.copyWith(color: Colors.grey[600]),
               ),
             ],
           ),
@@ -39,34 +49,58 @@ class AttendanceScreen extends ConsumerWidget {
           actions: [
             IconButton(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('QR scanning coming soon')),
-                );
+                setState(() {
+                  _showSearchBar = !_showSearchBar;
+                });
               },
-              icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary),
+              icon: Icon(_showSearchBar ? Icons.search_off : Icons.search, color: AppColors.primary),
             ),
           ],
         ),
         body: Column(
           children: [
-            _buildSummaryCard(
-                checkInCount, totalMembersCount, attendancePercentage),
-            TabBar(
-              labelColor: AppColors.primary,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: AppColors.primary,
-              labelStyle: AppTextStyles.bodyMedium
-                  .copyWith(fontWeight: FontWeight.bold),
-              tabs: [
-                Tab(text: 'Checked In ($checkInCount)'),
-                const Tab(text: 'Checked Out'),
-              ],
+            if (_showSearchBar)
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: TextField(
+                  onChanged: (val) => ref.read(attendanceProvider.notifier).setSearch(val),
+                  decoration: InputDecoration(
+                    hintText: 'Search across logs...',
+                    prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () {
+                        ref.read(attendanceProvider.notifier).setSearch('');
+                      },
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  ),
+                ),
+              ),
+            _buildSummaryCard(presentToday, checkedOut, stillInside, percentage),
+            Container(
+              color: Colors.white,
+              child: TabBar(
+                labelColor: AppColors.primary,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: AppColors.primary,
+                labelStyle: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold),
+                tabs: const [
+                  Tab(text: "Today's Log"),
+                  Tab(text: "Search Member"),
+                ],
+              ),
             ),
             Expanded(
               child: TabBarView(
                 children: [
-                  _CheckedInTab(),
-                  _CheckedOutTab(),
+                  _TodayLogTab(),
+                  _SearchMemberTab(),
                 ],
               ),
             ),
@@ -76,8 +110,7 @@ class AttendanceScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSummaryCard(
-      int checkInCount, int totalMembers, String percentage) {
+  Widget _buildSummaryCard(int presentToday, int checkedOut, int stillInside, double percentage) {
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -88,33 +121,47 @@ class AttendanceScreen extends ConsumerWidget {
           colors: [AppColors.primary, Color(0xFF1A237E)],
         ),
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildSummaryItem("Today's Check-ins", checkInCount.toString(),
-                  isBold: true),
+              _buildSummaryItem("Present Today", presentToday.toString(), isBold: true),
               const SizedBox(
                 height: 40,
                 child: VerticalDivider(color: Colors.white30, thickness: 1),
               ),
-              _buildSummaryItem("Total Members", totalMembers.toString()),
+              _buildSummaryItem("Checked Out", checkedOut.toString()),
               const SizedBox(
                 height: 40,
                 child: VerticalDivider(color: Colors.white30, thickness: 1),
               ),
-              _buildSummaryItem("Attendance", "$percentage%"),
+              _buildSummaryItem("Still Inside", stillInside.toString()),
             ],
           ),
           const SizedBox(height: 20),
+          Row(
+            children: [
+              Text("Attendance Rate: ${percentage.toStringAsFixed(0)}%", style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              const Spacer(),
+              Text("$presentToday / 25 Members", style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            ],
+          ),
+          const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: checkInCount / totalMembers,
-              backgroundColor: Colors.white.withValues(alpha: 0.1),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              value: percentage / 100,
+              backgroundColor: Colors.white.withValues(alpha: 0.15),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.greenAccent),
               minHeight: 6,
             ),
           ),
@@ -126,14 +173,13 @@ class AttendanceScreen extends ConsumerWidget {
   Widget _buildSummaryItem(String label, String value, {bool isBold = false}) {
     return Column(
       children: [
-        Text(label,
-            style: AppTextStyles.caption.copyWith(color: Colors.white70)),
+        Text(label, style: AppTextStyles.caption.copyWith(color: Colors.white70)),
         const SizedBox(height: 4),
         Text(
           value,
           style: AppTextStyles.displayMedium.copyWith(
             color: Colors.white,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
             fontSize: 24,
           ),
         ),
@@ -142,90 +188,138 @@ class AttendanceScreen extends ConsumerWidget {
   }
 }
 
-class _CheckedInTab extends ConsumerWidget {
+class _TodayLogTab extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TodayLogTab> createState() => _TodayLogTabState();
+}
+
+class _TodayLogTabState extends ConsumerState<_TodayLogTab> {
+  String _selectedFilter = 'All';
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(attendanceProvider);
-    final filteredRecords = state.todaysRecords
-        .where((r) =>
-            r.memberName
-                .toLowerCase()
-                .contains(state.searchQuery.toLowerCase()) ||
-            r.memberCode
-                .toLowerCase()
-                .contains(state.searchQuery.toLowerCase()))
-        .toList();
+    final todayRecords = state.todayRecords;
+
+    // Filter by search query
+    var filtered = todayRecords.where((r) =>
+        r.memberName.toLowerCase().contains(state.searchQuery.toLowerCase()) ||
+        r.memberCode.toLowerCase().contains(state.searchQuery.toLowerCase())).toList();
+
+    // Filter by chips
+    if (_selectedFilter == 'Checked In') {
+      filtered = filtered.toList(); // All present are checked in
+    } else if (_selectedFilter == 'Checked Out') {
+      filtered = filtered.where((r) => r.checkOutTime != null).toList();
+    } else if (_selectedFilter == 'Still Inside') {
+      filtered = filtered.where((r) => r.checkOutTime == null).toList();
+    }
+
+    // Sort most recent check-in first
+    filtered.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
+
+    final filters = ['All', 'Checked In', 'Checked Out', 'Still Inside'];
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: TextField(
-            onChanged: (val) =>
-                ref.read(attendanceProvider.notifier).setSearch(val),
-            decoration: InputDecoration(
-              hintText: 'Search checked-in members...',
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 0),
-            ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: filters.map((f) {
+              final isSelected = _selectedFilter == f;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: Text(f, style: TextStyle(color: isSelected ? Colors.white : AppColors.textPrimary)),
+                  selected: isSelected,
+                  selectedColor: AppColors.primary,
+                  backgroundColor: Colors.white,
+                  checkmarkColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(color: isSelected ? AppColors.primary : AppColors.border),
+                  ),
+                  onSelected: (bool selected) {
+                    setState(() {
+                      _selectedFilter = f;
+                    });
+                  },
+                ),
+              );
+            }).toList(),
           ),
         ),
         Expanded(
-          child: filteredRecords.isEmpty
-              ? const Center(
+          child: filtered.isEmpty
+              ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.check_circle_outline,
-                          size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text('No results found',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text('Try a different name',
-                          style: TextStyle(color: Colors.grey)),
+                      Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      Text('No check-ins recorded', style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: Colors.grey[600])),
                     ],
                   ),
                 )
               : ListView.separated(
-                  itemCount: filteredRecords.length,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  separatorBuilder: (context, index) =>
-                      const Divider(height: 1),
+                  itemCount: filtered.length,
+                  padding: const EdgeInsets.only(bottom: 24, left: 16, right: 16),
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
-                    final record = filteredRecords[index];
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.04),
+                    final record = filtered[index];
+                    final isStillInside = record.checkOutTime == null;
+
+                    final checkInStr = DateFormat('hh:mm a').format(record.checkInTime);
+                    final checkOutStr = isStillInside ? "Still inside" : DateFormat('hh:mm a').format(record.checkOutTime!);
+
+                    return Card(
+                      elevation: 0,
+                      margin: EdgeInsets.zero,
+                      color: isStillInside ? Colors.orange.withValues(alpha: 0.08) : Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: isStillInside ? Colors.orange.withValues(alpha: 0.3) : AppColors.border),
                       ),
                       child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         leading: CircleAvatar(
-                          backgroundColor:
-                              AppColors.primary.withValues(alpha: 0.1),
-                          child: Text(record.memberName[0],
-                              style: const TextStyle(color: AppColors.primary)),
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                          child: Text(record.memberName.isNotEmpty ? record.memberName[0] : 'M', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                         ),
-                        title: Text(record.memberName,
-                            style: AppTextStyles.bodyMedium),
-                        subtitle: Text(
-                            '${record.memberCode} · ${record.planName}',
-                            style: AppTextStyles.caption),
+                        title: Text(record.memberName, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
+                        subtitle: Text('${record.memberCode} · ${record.planName}', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(
-                              DateFormat('hh:mm a').format(record.checkInTime),
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                  color: AppColors.success,
-                                  fontWeight: FontWeight.bold),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.login, size: 14, color: Colors.green),
+                                const SizedBox(width: 4),
+                                Text(checkInStr, style: AppTextStyles.caption.copyWith(color: Colors.green, fontWeight: FontWeight.bold)),
+                              ],
                             ),
-                            const Text('Checked in',
-                                style: TextStyle(
-                                    color: AppColors.success, fontSize: 10)),
+                            const SizedBox(height: 4),
+                            if (!isStillInside)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.logout, size: 14, color: AppColors.primary),
+                                  const SizedBox(width: 4),
+                                  Text(checkOutStr, style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                                ],
+                              )
+                            else
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.circle, size: 8, color: Colors.orange),
+                                  const SizedBox(width: 4),
+                                  Text(checkOutStr, style: AppTextStyles.caption.copyWith(color: Colors.orange, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
                           ],
                         ),
                       ),
@@ -238,12 +332,12 @@ class _CheckedInTab extends ConsumerWidget {
   }
 }
 
-class _CheckedOutTab extends ConsumerStatefulWidget {
+class _SearchMemberTab extends ConsumerStatefulWidget {
   @override
-  ConsumerState<_CheckedOutTab> createState() => _CheckedOutTabState();
+  ConsumerState<_SearchMemberTab> createState() => _SearchMemberTabState();
 }
 
-class _CheckedOutTabState extends ConsumerState<_CheckedOutTab> {
+class _SearchMemberTabState extends ConsumerState<_SearchMemberTab> {
   final _searchController = TextEditingController();
   String _query = '';
 
@@ -256,17 +350,14 @@ class _CheckedOutTabState extends ConsumerState<_CheckedOutTab> {
   @override
   Widget build(BuildContext context) {
     final allMembers = ref.watch(membersProvider);
-    final attendanceNotifier = ref.watch(attendanceProvider.notifier);
-    final isCheckingIn = ref.watch(attendanceProvider).isCheckingIn;
+    final attendanceState = ref.watch(attendanceProvider);
 
     final results = _query.isEmpty
-        ? <Member>[]
-        : allMembers
-            .where((m) =>
-                m.name.toLowerCase().contains(_query.toLowerCase()) ||
-                m.phone.contains(_query) ||
-                m.memberCode.toLowerCase().contains(_query.toLowerCase()))
-            .toList();
+        ? allMembers
+        : allMembers.where((m) =>
+            m.name.toLowerCase().contains(_query.toLowerCase()) ||
+            m.phone.contains(_query) ||
+            m.memberCode.toLowerCase().contains(_query.toLowerCase())).toList();
 
     return Column(
       children: [
@@ -277,17 +368,16 @@ class _CheckedOutTabState extends ConsumerState<_CheckedOutTab> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.08),
+                  color: AppColors.info.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline,
-                        color: AppColors.accent, size: 20),
-                    const SizedBox(width: 8),
-                    Text('Search a member and tap Check In',
-                        style: AppTextStyles.caption
-                            .copyWith(color: AppColors.accent)),
+                    const Icon(Icons.info_outline, color: AppColors.info, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text('Search any member to view their attendance history', style: AppTextStyles.caption.copyWith(color: AppColors.info)),
+                    ),
                   ],
                 ),
               ),
@@ -297,7 +387,16 @@ class _CheckedOutTabState extends ConsumerState<_CheckedOutTab> {
                 onChanged: (val) => setState(() => _query = val),
                 decoration: InputDecoration(
                   hintText: 'Search by name, phone or member ID...',
-                  prefixIcon: const Icon(Icons.search),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                  suffixIcon: _query.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _query = '');
+                          },
+                        )
+                      : null,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(color: AppColors.border),
@@ -309,125 +408,91 @@ class _CheckedOutTabState extends ConsumerState<_CheckedOutTab> {
           ),
         ),
         Expanded(
-          child: results.isEmpty && _query.isNotEmpty
-              ? const Center(child: Text('No members found'))
+          child: results.isEmpty
+              ? Center(child: Text('No members found', style: TextStyle(color: Colors.grey[600])))
               : ListView.separated(
                   itemCount: results.length,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  separatorBuilder: (context, index) =>
-                      const Divider(height: 1),
+                  padding: const EdgeInsets.only(bottom: 24, left: 16, right: 16),
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final member = results[index];
-                    final isCheckedIn =
-                        attendanceNotifier.isAlreadyCheckedIn(member.id);
-                    final checkInTime =
-                        attendanceNotifier.getCheckInTime(member.id);
+                    
+                    // Calculate mini stats for current month
+                    final memberRecs = attendanceState.allRecords.where((r) => r.memberId == member.id).toList();
+                    final presentDays = memberRecs.map((r) => r.date.toIso8601String()).toSet().length;
+                    const totalMonthDays = 22; // Working days
+                    final absentDays = (totalMonthDays - presentDays) > 0 ? (totalMonthDays - presentDays) : 0;
+                    final rate = ((presentDays / totalMonthDays) * 100).round().clamp(0, 100);
 
-                    return ListTile(
-                      leading: CircleAvatar(
-                        child: Text(member.initials),
+                    return Card(
+                      elevation: 0,
+                      margin: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: AppColors.border),
                       ),
-                      title: Text(member.name),
-                      subtitle:
-                          Text('${member.memberCode} · ${member.planName}'),
-                      trailing: _buildTrailing(
-                          member, isCheckedIn, checkInTime, isCheckingIn),
-                      onTap: () {
-                        if (isCheckedIn) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  '${member.name} already checked in today at $checkInTime'),
-                              backgroundColor: Colors.orange,
-                            ),
-                          );
-                        } else if (member.status == MemberStatus.expired) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'Membership expired. Collect payment first.'),
-                              backgroundColor: AppColors.danger,
-                            ),
-                          );
-                        }
-                      },
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          context.push('/attendance/${member.id}');
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                                    child: Text(member.initials, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(member.name, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
+                                        Text('${member.memberCode} · ${member.planName}', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: member.status == MemberStatus.active ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      member.status.name.toUpperCase(),
+                                      style: TextStyle(
+                                        color: member.status == MemberStatus.active ? Colors.green : Colors.red,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.chevron_right, color: Colors.grey),
+                                ],
+                              ),
+                              const Divider(height: 24),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  Text("Present: $presentDays days", style: AppTextStyles.caption.copyWith(color: Colors.green, fontWeight: FontWeight.bold)),
+                                  Text("Absent: $absentDays days", style: AppTextStyles.caption.copyWith(color: Colors.red, fontWeight: FontWeight.bold)),
+                                  Text("Attendance: $rate%", style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     );
                   },
                 ),
         ),
       ],
     );
-  }
-
-  Widget _buildTrailing(Member member, bool isCheckedIn, String? checkInTime,
-      bool isCheckingInGlobal) {
-    if (isCheckedIn) {
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          const Text('✓ Checked In',
-              style: TextStyle(
-                  color: AppColors.success,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12)),
-          Text(checkInTime ?? '',
-              style: AppTextStyles.caption.copyWith(color: AppColors.success)),
-        ],
-      );
-    }
-
-    if (member.status == MemberStatus.expired) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: AppColors.danger,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: const Text('Expired',
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.bold)),
-      );
-    }
-
-    return ElevatedButton(
-      onPressed: isCheckingInGlobal ? null : () => _handleCheckIn(member),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.accent,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-        minimumSize: const Size(0, 32),
-        elevation: 0,
-      ),
-      child: const Text('Check In', style: TextStyle(fontSize: 12)),
-    );
-  }
-
-  Future<void> _handleCheckIn(Member member) async {
-    try {
-      await ref.read(attendanceProvider.notifier).checkIn(member);
-      if (mounted) {
-        final time =
-            ref.read(attendanceProvider.notifier).getCheckInTime(member.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✓ ${member.name} checked in at $time'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } on AlreadyCheckedInException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text('${member.name} already checked in today at ${e.time}'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-    }
   }
 }

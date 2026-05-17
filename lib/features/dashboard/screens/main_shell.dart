@@ -3,12 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../auth/models/user_model.dart';
+import '../../members/providers/members_provider.dart';
 import '../../members/screens/members_list_screen.dart';
+import '../../members/screens/member_profile_screen.dart';
 import '../../attendance/screens/attendance_screen.dart';
+import '../../attendance/screens/member_qr_screen.dart';
 import '../../payments/screens/payments_screen.dart';
 import '../../settings/screens/settings_screen.dart';
+import '../../classes/screens/member_classes_screen.dart';
 import '../../../core/providers/navigation_provider.dart';
 import 'owner_dashboard_screen.dart';
+import 'member_dashboard_screen.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
@@ -21,7 +27,6 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   void initState() {
     super.initState();
-    // Initialize the index based on the current route
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncIndexWithRoute();
     });
@@ -30,38 +35,40 @@ class _MainShellState extends ConsumerState<MainShell> {
   void _syncIndexWithRoute() {
     final location = GoRouterState.of(context).matchedLocation;
     final authState = ref.read(authProvider);
+    final role = authState.selectedRole;
 
-    final List<AppPermission> orderedPermissions = [
-      AppPermission.viewDashboard,
-      AppPermission.manageMembers,
-      AppPermission.viewAttendance,
-      AppPermission.managePayments,
-      AppPermission.manageSettings,
-    ];
-
-    AppPermission? targetPermission;
-    if (location == '/attendance') {
-      targetPermission = AppPermission.viewAttendance;
-    } else if (location == '/payments') {
-      targetPermission = AppPermission.managePayments;
-    } else if (location == '/settings') {
-      targetPermission = AppPermission.manageSettings;
-    } else if (location == '/members') {
-      targetPermission = AppPermission.manageMembers;
-    } else if (location == '/dashboard') {
-      targetPermission = AppPermission.viewDashboard;
-    }
-
-    if (targetPermission != null) {
-      int visibleIndex = 0;
-      for (var p in orderedPermissions) {
-        if (authState.hasPermission(p)) {
-          if (p == targetPermission) {
-            ref.read(bottomNavIndexProvider.notifier).state = visibleIndex;
-            break;
-          }
-          visibleIndex++;
-        }
+    if (role == UserRole.member) {
+      if (location == '/dashboard') {
+        ref.read(bottomNavIndexProvider.notifier).state = 0;
+      } else if (location == '/member/classes') {
+        ref.read(bottomNavIndexProvider.notifier).state = 1;
+      } else if (location == '/my-qr') {
+        ref.read(bottomNavIndexProvider.notifier).state = 2;
+      } else if (location.startsWith('/members/')) {
+        ref.read(bottomNavIndexProvider.notifier).state = 3;
+      }
+    } else if (role == UserRole.trainer) {
+      if (location == '/dashboard') {
+        ref.read(bottomNavIndexProvider.notifier).state = 0;
+      } else if (location.startsWith('/members') || location.startsWith('/trainer/members')) {
+        ref.read(bottomNavIndexProvider.notifier).state = 1;
+      } else if (location == '/attendance') {
+        ref.read(bottomNavIndexProvider.notifier).state = 2;
+      } else if (location == '/settings') {
+        ref.read(bottomNavIndexProvider.notifier).state = 3;
+      }
+    } else {
+      // Owner
+      if (location == '/dashboard') {
+        ref.read(bottomNavIndexProvider.notifier).state = 0;
+      } else if (location.startsWith('/members')) {
+        ref.read(bottomNavIndexProvider.notifier).state = 1;
+      } else if (location == '/attendance') {
+        ref.read(bottomNavIndexProvider.notifier).state = 2;
+      } else if (location == '/payments') {
+        ref.read(bottomNavIndexProvider.notifier).state = 3;
+      } else if (location == '/settings') {
+        ref.read(bottomNavIndexProvider.notifier).state = 4;
       }
     }
   }
@@ -70,82 +77,64 @@ class _MainShellState extends ConsumerState<MainShell> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final selectedIndex = ref.watch(bottomNavIndexProvider);
+    final role = authState.selectedRole;
 
-    // Define all potential destinations
-    final Map<AppPermission, NavigationDestination> allDestinations = {
-      AppPermission.viewDashboard: const NavigationDestination(
-        icon: Icon(Icons.home_outlined),
-        selectedIcon: Icon(Icons.home_rounded),
-        label: 'Home',
-      ),
-      AppPermission.manageMembers: const NavigationDestination(
-        icon: Icon(Icons.people_outlined),
-        selectedIcon: Icon(Icons.people_rounded),
-        label: 'Members',
-      ),
-      AppPermission.viewAttendance: const NavigationDestination(
-        icon: Icon(Icons.check_circle_outline),
-        selectedIcon: Icon(Icons.check_circle_rounded),
-        label: 'Attendance',
-      ),
-      AppPermission.manageClasses: const NavigationDestination(
-        icon: Icon(Icons.calendar_month_outlined),
-        selectedIcon: Icon(Icons.calendar_month_rounded),
-        label: 'Classes',
-      ),
-      AppPermission.managePayments: const NavigationDestination(
-        icon: Icon(Icons.currency_rupee_outlined),
-        selectedIcon: Icon(Icons.currency_rupee_rounded),
-        label: 'Payments',
-      ),
-      AppPermission.viewReports: const NavigationDestination(
-        icon: Icon(Icons.bar_chart_outlined),
-        selectedIcon: Icon(Icons.bar_chart_rounded),
-        label: 'Reports',
-      ),
-      AppPermission.manageSettings: const NavigationDestination(
-        icon: Icon(Icons.settings_outlined),
-        selectedIcon: Icon(Icons.settings_rounded),
-        label: 'Settings',
-      ),
-    };
+    List<NavigationDestination> destinations;
+    List<Widget> screens;
 
-    // Define all potential screens
-    final Map<AppPermission, Widget> allScreens = {
-      AppPermission.viewDashboard: const OwnerDashboardScreen(),
-      AppPermission.manageMembers: const MembersListScreen(),
-      AppPermission.viewAttendance: const AttendanceScreen(),
-      AppPermission.manageClasses:
-          const Center(child: Text('Classes Screen Placeholder')),
-      AppPermission.managePayments: const PaymentsScreen(),
-      AppPermission.viewReports:
-          const Center(child: Text('Reports Screen Placeholder')),
-      AppPermission.manageSettings: const SettingsScreen(),
-    };
+    if (role == UserRole.member) {
+      final allMembers = ref.watch(membersProvider);
+      final member = allMembers.firstWhere(
+        (m) => m.name == authState.user?.name,
+        orElse: () => allMembers.first,
+      );
 
-    // Filter based on role permissions
-    final List<NavigationDestination> destinations = [];
-    final List<Widget> screens = [];
+      destinations = const [
+        NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'),
+        NavigationDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month_rounded), label: 'Classes'),
+        NavigationDestination(icon: Icon(Icons.qr_code_outlined), selectedIcon: Icon(Icons.qr_code_rounded), label: 'My QR'),
+        NavigationDestination(icon: Icon(Icons.person_outlined), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
+      ];
 
-    // Order matters for the bottom nav - Maximum 5 items to prevent congestion
-    final List<AppPermission> orderedPermissions = [
-      AppPermission.viewDashboard,
-      AppPermission.manageMembers,
-      AppPermission.viewAttendance,
-      AppPermission.managePayments,
-      AppPermission.manageSettings,
-    ];
+      screens = [
+        const MemberDashboardScreen(),
+        const MemberClassesScreen(),
+        const MemberQrScreen(),
+        MemberProfileScreen(memberId: member.id),
+      ];
+    } else if (role == UserRole.trainer) {
+      destinations = const [
+        NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'),
+        NavigationDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people_rounded), label: 'My Members'),
+        NavigationDestination(icon: Icon(Icons.check_circle_outline), selectedIcon: Icon(Icons.check_circle_rounded), label: 'Attendance'),
+        NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings_rounded), label: 'Settings'),
+      ];
 
-    for (var permission in orderedPermissions) {
-      if (authState.hasPermission(permission)) {
-        if (allDestinations.containsKey(permission)) {
-          destinations.add(allDestinations[permission]!);
-          screens.add(allScreens[permission]!);
-        }
-      }
+      screens = [
+        const OwnerDashboardScreen(),
+        const MembersListScreen(),
+        const AttendanceScreen(),
+        const SettingsScreen(),
+      ];
+    } else {
+      // Owner
+      destinations = const [
+        NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'),
+        NavigationDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people_rounded), label: 'Members'),
+        NavigationDestination(icon: Icon(Icons.check_circle_outline), selectedIcon: Icon(Icons.check_circle_rounded), label: 'Attendance'),
+        NavigationDestination(icon: Icon(Icons.currency_rupee_outlined), selectedIcon: Icon(Icons.currency_rupee_rounded), label: 'Payments'),
+        NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings_rounded), label: 'Settings'),
+      ];
+
+      screens = [
+        const OwnerDashboardScreen(),
+        const MembersListScreen(),
+        const AttendanceScreen(),
+        const PaymentsScreen(),
+        const SettingsScreen(),
+      ];
     }
 
-    // Safety check for index out of bounds when role changes
     final safeIndex = selectedIndex >= screens.length ? 0 : selectedIndex;
 
     return Scaffold(

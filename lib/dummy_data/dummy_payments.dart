@@ -224,4 +224,22 @@ final List<PendingRenewal> dummyPendingRenewals = [
     daysUntilExpiry: 7,
     amount: 2000,
   ),
+  PendingRenewal(
+    memberId: '21',
+    memberName: 'Pankaj Tripathi',
+    memberCode: 'GYM-2026-0021',
+    currentPlan: 'Quarterly Premium',
+    expiryDate: DateTime.now().add(const Duration(days: 10)),
+    daysUntilExpiry: 10,
+    amount: 5500,
+  ),
+  PendingRenewal(
+    memberId: '22',
+    memberName: 'Nawazuddin Siddiqui',
+    memberCode: 'GYM-2026-0022',
+    currentPlan: 'Annual Elite',
+    expiryDate: DateTime.now().add(const Duration(days: 12)),
+    daysUntilExpiry: 12,
+    amount: 15000,
+  ),
 ];
