@@ -10,6 +10,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../members/providers/members_provider.dart';
 import '../../attendance/providers/attendance_provider.dart';
 import '../../classes/providers/classes_provider.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 class MemberDashboardScreen extends ConsumerWidget {
   const MemberDashboardScreen({super.key});
@@ -516,7 +517,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                         onPressed: () {
                           ref.read(classesProvider.notifier).cancelBooking(c.id, memberId);
                           Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Cancelled ${c.className}"), backgroundColor: Colors.red));
+                          SnackbarHelper.showError(context, "Cancelled ${c.className}");
                         },
                         child: const Text("Yes, Cancel"),
                       ),

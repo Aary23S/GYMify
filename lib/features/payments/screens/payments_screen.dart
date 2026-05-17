@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../dummy_data/dummy_payments.dart';
 import '../providers/payments_provider.dart';
+import '../../../core/widgets/empty_state_widget.dart';
 
 class PaymentsScreen extends ConsumerStatefulWidget {
   const PaymentsScreen({super.key});
@@ -220,9 +221,13 @@ class _DueAndExpiringTab extends StatelessWidget {
             const SizedBox(height: 24),
           ],
           if (overdueList.isEmpty && expiringThisWeek.isEmpty && expiringNextWeek.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 64),
-              child: Center(child: Text("No upcoming dues or expirations 🎉", style: TextStyle(color: Colors.grey[600], fontSize: 16))),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: EmptyStateWidget(
+                icon: Icons.check_circle_outline,
+                title: 'All Caught Up!',
+                subtitle: 'No upcoming dues or expiring memberships found.',
+              ),
             ),
         ],
       ),
@@ -386,7 +391,11 @@ class _HistoryTab extends StatelessWidget {
         ),
         Expanded(
           child: filtered.isEmpty
-              ? Center(child: Text('No payment records found', style: TextStyle(color: Colors.grey[600])))
+              ? const EmptyStateWidget(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'No Payment Records',
+                  subtitle: 'No transactions found matching your selected filter.',
+                )
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: filtered.length,

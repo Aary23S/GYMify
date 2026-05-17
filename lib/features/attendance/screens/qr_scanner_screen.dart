@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../members/providers/members_provider.dart';
 import '../providers/attendance_provider.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 // Phase 2 Note: Replace _simulateScan() with mobile_scanner widget
 // MobileScanner(onDetect: (capture) { decode QR -> call same provider methods })
@@ -69,15 +70,11 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> with SingleTi
         if (!mounted) return;
         final time = attendanceNotifier.getTodayCheckInTime(member.id) ?? DateFormat('hh:mm a').format(DateTime.now());
         context.pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("✓ Check-in recorded at $time"), backgroundColor: Colors.green),
-        );
+        SnackbarHelper.showSuccess(context, "✓ Check-in recorded at $time");
       } on AlreadyCheckedInException catch (e) {
         if (!mounted) return;
         context.pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Already checked in today at ${e.time}"), backgroundColor: Colors.orange),
-        );
+        SnackbarHelper.showWarning(context, "Already checked in today at ${e.time}");
       }
     } else if (widget.action == 'checkout') {
       try {
@@ -95,15 +92,11 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> with SingleTi
           duration = h > 0 ? "${h}h ${m}m" : "${m}m";
         }
         context.pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("✓ Check-out recorded at $time · Duration: $duration"), backgroundColor: Colors.green),
-        );
+        SnackbarHelper.showSuccess(context, "✓ Check-out recorded at $time · Duration: $duration");
       } on NotCheckedInException catch (_) {
         if (!mounted) return;
         context.pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No check-in found for today"), backgroundColor: Colors.red),
-        );
+        SnackbarHelper.showError(context, "No check-in found for today");
       }
     }
   }
@@ -117,7 +110,13 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> with SingleTi
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/attendance');
+            }
+          },
         ),
         title: const Text('Scan QR Code', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,

@@ -9,6 +9,7 @@ import '../../members/models/member_model.dart';
 import '../../members/providers/members_provider.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -100,9 +101,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     if (_currentStep == 1) {
       if (!_formKey1.currentState!.validate()) return;
       if (_dob == null || _gender == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please enter Date of Birth and Gender")),
-        );
+        SnackbarHelper.showWarning(context, "Please enter Date of Birth and Gender");
         return;
       }
     } else if (_currentStep == 2) {
@@ -128,23 +127,23 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         curve: Curves.easeInOut,
       );
     } else {
-      context.pop();
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/login');
+      }
     }
   }
 
   Future<void> _handleSubmit() async {
     if (_selectedPlanIndex == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please select a membership plan to continue.")),
-      );
+      SnackbarHelper.showWarning(context, "Please select a membership plan to continue.");
       return;
     }
 
     // Final complete validation
     if (!_formKey1.currentState!.validate() || !_formKey2.currentState!.validate() || _dob == null || _gender == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please complete all required fields correctly in previous steps.")),
-      );
+      SnackbarHelper.showError(context, "Please complete all required fields correctly in previous steps.");
       return;
     }
 
@@ -189,13 +188,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     if (mounted) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Welcome to GymFlow, ${newMember.name}! 🎉"),
-          backgroundColor: AppColors.success,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      SnackbarHelper.showSuccess(context, "Welcome to GymFlow, ${newMember.name}! 🎉");
       context.go('/dashboard');
     }
   }

@@ -33,7 +33,7 @@ class StatCard extends StatelessWidget {
           border: Border.all(color: AppColors.border, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -46,17 +46,35 @@ class StatCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(AppSizes.paddingS),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusS),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                    size: 20,
-                  ),
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: -0.5, end: 1.5),
+                  duration: const Duration(milliseconds: 1200),
+                  builder: (context, value, child) {
+                    final stops = [
+                      (value - 0.2).clamp(0.0, 1.0),
+                      value.clamp(0.0, 1.0),
+                      (value + 0.2).clamp(0.0, 1.0),
+                    ];
+                    return Container(
+                      padding: const EdgeInsets.all(AppSizes.paddingS),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppSizes.radiusS),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          stops: stops,
+                          colors: [
+                            color.withValues(alpha: 0.1),
+                            color.withValues(alpha: 0.3),
+                            color.withValues(alpha: 0.1),
+                          ],
+                        ),
+                      ),
+                      child: child,
+                    );
+                  },
+                  child: Icon(icon, color: color, size: 20),
                 ),
                 Icon(
                   Icons.arrow_forward_ios,

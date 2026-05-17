@@ -12,6 +12,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../members/providers/members_provider.dart';
 import '../providers/payments_provider.dart';
 import '../../../dummy_data/dummy_payments.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 class PlanOption {
   final String name;
@@ -86,7 +87,13 @@ class _MemberPaymentScreenState extends ConsumerState<MemberPaymentScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/dashboard');
+            }
+          },
         ),
       ),
       body: Column(
@@ -393,7 +400,7 @@ class _MemberPaymentScreenState extends ConsumerState<MemberPaymentScreen> {
           icon: const Icon(Icons.copy, size: 18, color: AppColors.primary),
           onPressed: () {
             Clipboard.setData(ClipboardData(text: value));
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Copied $label"), duration: const Duration(seconds: 1)));
+            SnackbarHelper.showSuccess(context, "Copied $label");
           },
         ),
       ],
@@ -497,7 +504,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                 icon: const Icon(Icons.download),
                 label: const Text("Download Receipt", style: TextStyle(fontWeight: FontWeight.bold)),
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Receipt download coming soon")));
+                  SnackbarHelper.showInfo(context, "Receipt download coming soon");
                 },
               ),
               const SizedBox(height: 16),

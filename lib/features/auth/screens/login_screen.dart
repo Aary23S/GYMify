@@ -213,6 +213,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       child: Wrap(
         spacing: 12,
         runSpacing: 12,
+        alignment: WrapAlignment.center,
         children: UserRole.values.map((role) {
           final isSelected = state.selectedRole == role;
           return ChoiceChip(

@@ -5,8 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/constants/app_sizes.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../../core/utils/snackbar_helper.dart';
 import '../models/member_model.dart';
 import '../providers/members_provider.dart';
 
@@ -172,18 +172,10 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
 
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                '✓ ${newMember.name} added successfully! ID: ${newMember.memberCode}'),
-            backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        SnackbarHelper.showSuccess(context, '✓ ${newMember.name} added successfully! ID: ${newMember.memberCode}');
         context.go('/members/${newMember.id}');
       }
     } else {
-      // Validation failed, scroll to first error (simplified)
       _scrollController.animateTo(0,
           duration: const Duration(milliseconds: 300), curve: Curves.easeIn);
     }
@@ -203,7 +195,13 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
             icon: const Icon(Icons.close, color: AppColors.textPrimary),
             onPressed: () async {
               if (await _onWillPop()) {
-                if (mounted) context.pop();
+                if (mounted) {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/dashboard');
+                  }
+                }
               }
             },
           ),
@@ -254,10 +252,7 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
         children: [
           GestureDetector(
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Photo upload available in next version')),
-              );
+              SnackbarHelper.showInfo(context, 'Photo upload available in next version');
             },
             child: Stack(
               children: [
@@ -292,7 +287,7 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
   Widget _buildSectionCard(
       {required IconData icon,
       required String title,
-      required List<Widget> children}) {
+      required Widget child}) {
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -310,7 +305,7 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
               ],
             ),
             const Divider(height: 24),
-            ...children,
+            child,
           ],
         ),
       ),
@@ -321,112 +316,134 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
     return _buildSectionCard(
       icon: Icons.person_outline,
       title: 'Personal Information',
-      children: [
-        TextFormField(
-          controller: _nameController,
-          decoration: _inputDecoration('Full Name *', Icons.badge_outlined),
-          validator: (value) {
-            if (value == null || value.isEmpty) return 'Full name is required';
-            if (value.length < 2) return 'Min 2 characters';
-            if (RegExp(r'[0-9]').hasMatch(value)) return 'Numbers not allowed';
-            return null;
-          },
-        ),
-        const SizedBox(height: 16),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                maxLength: 10,
-                decoration:
-                    _inputDecoration('Mobile Number *', Icons.phone_outlined)
-                        .copyWith(counterText: ""),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isSmall = constraints.maxWidth < 380;
+
+          final phoneField = TextFormField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            maxLength: 10,
+            decoration:
+                _inputDecoration('Mobile Number *', Icons.phone_outlined)
+                    .copyWith(counterText: ""),
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'Required';
+              if (value.length != 10) return 'Exactly 10 digits';
+              if (!RegExp(r'^[6-9]').hasMatch(value)) {
+                return 'Must start with 6-9';
+              }
+              return null;
+            },
+          );
+
+          final emailField = TextFormField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            decoration:
+                _inputDecoration('Email (optional)', Icons.email_outlined),
+            validator: (value) {
+              if (value != null && value.isNotEmpty) {
+                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                    .hasMatch(value)) {
+                  return 'Invalid email';
+                }
+              }
+              return null;
+            },
+          );
+
+          final dobField = TextFormField(
+            readOnly: true,
+            onTap: () => _selectDate(
+              context,
+              initialDate:
+                  DateTime.now().subtract(const Duration(days: 365 * 25)),
+              firstDate:
+                  DateTime.now().subtract(const Duration(days: 365 * 80)),
+              lastDate:
+                  DateTime.now().subtract(const Duration(days: 365 * 13)),
+              onSelected: (date) => _dob = date,
+            ),
+            decoration:
+                _inputDecoration('Date of Birth *', Icons.cake_outlined),
+            controller: TextEditingController(
+              text: _dob != null
+                  ? DateFormat('dd MMM yyyy').format(_dob!)
+                  : '',
+            ),
+            validator: (value) =>
+                value == null || value.isEmpty ? 'Required' : null,
+          );
+
+          final genderField = DropdownButtonFormField<String>(
+            initialValue: _gender,
+            isExpanded: true,
+            decoration: _inputDecoration('Gender *', Icons.wc_outlined),
+            items: ['Male', 'Female', 'Other']
+                .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                .toList(),
+            onChanged: (val) => setState(() => _gender = val),
+            validator: (val) => val == null ? 'Required' : null,
+          );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                controller: _nameController,
+                decoration: _inputDecoration('Full Name *', Icons.badge_outlined),
                 validator: (value) {
-                  if (value == null || value.isEmpty) return 'Required';
-                  if (value.length != 10) return 'Exactly 10 digits';
-                  if (!RegExp(r'^[6-9]').hasMatch(value))
-                    return 'Must start with 6-9';
+                  if (value == null || value.isEmpty) return 'Full name is required';
+                  if (value.length < 2) return 'Min 2 characters';
+                  if (RegExp(r'[0-9]').hasMatch(value)) return 'Numbers not allowed';
                   return null;
                 },
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration:
-                    _inputDecoration('Email (optional)', Icons.email_outlined),
-                validator: (value) {
-                  if (value != null && value.isNotEmpty) {
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                        .hasMatch(value)) {
-                      return 'Invalid email';
-                    }
-                  }
-                  return null;
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: TextFormField(
-                readOnly: true,
-                onTap: () => _selectDate(
-                  context,
-                  initialDate:
-                      DateTime.now().subtract(const Duration(days: 365 * 25)),
-                  firstDate:
-                      DateTime.now().subtract(const Duration(days: 365 * 80)),
-                  lastDate:
-                      DateTime.now().subtract(const Duration(days: 365 * 13)),
-                  onSelected: (date) => _dob = date,
+              const SizedBox(height: 16),
+              if (isSmall) ...[
+                phoneField,
+                const SizedBox(height: 16),
+                emailField,
+              ] else ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: phoneField),
+                    const SizedBox(width: 12),
+                    Expanded(child: emailField),
+                  ],
                 ),
-                decoration:
-                    _inputDecoration('Date of Birth *', Icons.cake_outlined),
-                controller: TextEditingController(
-                  text: _dob != null
-                      ? DateFormat('dd MMM yyyy').format(_dob!)
-                      : '',
+              ],
+              const SizedBox(height: 16),
+              if (isSmall) ...[
+                dobField,
+                const SizedBox(height: 16),
+                genderField,
+              ] else ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: dobField),
+                    const SizedBox(width: 12),
+                    Expanded(child: genderField),
+                  ],
                 ),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Required' : null,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: _gender,
+              ],
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: _bloodGroup,
                 isExpanded: true,
-                decoration: _inputDecoration('Gender *', Icons.wc_outlined),
-                items: ['Male', 'Female', 'Other']
-                    .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                decoration: _inputDecoration('Blood Group', Icons.bloodtype_outlined),
+                items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown']
+                    .map((b) => DropdownMenuItem(value: b, child: Text(b)))
                     .toList(),
-                onChanged: (val) => setState(() => _gender = val),
-                validator: (val) => val == null ? 'Required' : null,
+                onChanged: (val) => setState(() => _bloodGroup = val!),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<String>(
-          value: _bloodGroup,
-          isExpanded: true,
-          decoration: _inputDecoration('Blood Group', Icons.bloodtype_outlined),
-          items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown']
-              .map((b) => DropdownMenuItem(value: b, child: Text(b)))
-              .toList(),
-          onChanged: (val) => setState(() => _bloodGroup = val!),
-        ),
-      ],
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -434,64 +451,66 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
     return _buildSectionCard(
       icon: Icons.card_membership,
       title: 'Membership Details',
-      children: [
-        DropdownButtonFormField<String>(
-          value: _selectedPlan,
-          decoration:
-              _inputDecoration('Membership Plan *', Icons.fitness_center),
-          isExpanded: true,
-          items: _plans.map((p) {
-            return DropdownMenuItem<String>(
-              value: p['name'],
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(p['name'] as String, style: AppTextStyles.bodyMedium),
-                  Text(
-                      '₹${p['price']} / ${p['duration'] == 30 ? 'month' : p['duration'] == 90 ? '3 months' : 'year'}',
-                      style:
-                          AppTextStyles.caption.copyWith(color: Colors.grey)),
-                ],
-              ),
-            );
-          }).toList(),
-          onChanged: (val) => setState(() => _selectedPlan = val),
-          validator: (val) => val == null ? 'Required' : null,
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          readOnly: true,
-          onTap: () => _selectDate(
-            context,
-            initialDate: DateTime.now(),
-            firstDate: DateTime.now().subtract(const Duration(days: 365)),
-            lastDate: DateTime.now(),
-            onSelected: (date) => _joinDate = date,
+      child: Column(
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: _selectedPlan,
+            decoration:
+                _inputDecoration('Membership Plan *', Icons.fitness_center),
+            isExpanded: true,
+            items: _plans.map((p) {
+              return DropdownMenuItem<String>(
+                value: p['name'],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(p['name'] as String, style: AppTextStyles.bodyMedium),
+                    Text(
+                        '₹${p['price']} / ${p['duration'] == 30 ? 'month' : p['duration'] == 90 ? '3 months' : 'year'}',
+                        style:
+                            AppTextStyles.caption.copyWith(color: Colors.grey)),
+                  ],
+                ),
+              );
+            }).toList(),
+            onChanged: (val) => setState(() => _selectedPlan = val),
+            validator: (val) => val == null ? 'Required' : null,
           ),
-          decoration:
-              _inputDecoration('Join Date *', Icons.calendar_today_outlined),
-          controller: TextEditingController(
-            text: DateFormat('dd MMM yyyy').format(_joinDate),
+          const SizedBox(height: 16),
+          TextFormField(
+            readOnly: true,
+            onTap: () => _selectDate(
+              context,
+              initialDate: DateTime.now(),
+              firstDate: DateTime.now().subtract(const Duration(days: 365)),
+              lastDate: DateTime.now(),
+              onSelected: (date) => _joinDate = date,
+            ),
+            decoration:
+                _inputDecoration('Join Date *', Icons.calendar_today_outlined),
+            controller: TextEditingController(
+              text: DateFormat('dd MMM yyyy').format(_joinDate),
+            ),
+            validator: (value) =>
+                value == null || value.isEmpty ? 'Required' : null,
           ),
-          validator: (value) =>
-              value == null || value.isEmpty ? 'Required' : null,
-        ),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<String>(
-          value: _assignedTrainer ?? 'None',
-          isExpanded: true,
-          decoration: _inputDecoration(
-              'Assign Personal Trainer', Icons.person_pin_outlined),
-          items: _trainers
-              .map((t) => DropdownMenuItem(
-                    value: t,
-                    child: Text(t, overflow: TextOverflow.ellipsis),
-                  ))
-              .toList(),
-          onChanged: (val) => setState(() => _assignedTrainer = val),
-        ),
-      ],
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            initialValue: _assignedTrainer ?? 'None',
+            isExpanded: true,
+            decoration: _inputDecoration(
+                'Assign Personal Trainer', Icons.person_pin_outlined),
+            items: _trainers
+                .map((t) => DropdownMenuItem(
+                      value: t,
+                      child: Text(t, overflow: TextOverflow.ellipsis),
+                    ))
+                .toList(),
+            onChanged: (val) => setState(() => _assignedTrainer = val),
+          ),
+        ],
+      ),
     );
   }
 
@@ -499,28 +518,30 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
     return _buildSectionCard(
       icon: Icons.emergency,
       title: 'Emergency Contact',
-      children: [
-        TextFormField(
-          controller: _emergencyNameController,
-          decoration:
-              _inputDecoration('Contact Person Name', Icons.person_outline),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: _emergencyPhoneController,
-          keyboardType: TextInputType.phone,
-          maxLength: 10,
-          decoration:
-              _inputDecoration('Contact Phone Number', Icons.phone_outlined)
-                  .copyWith(counterText: ""),
-          validator: (value) {
-            if (value != null && value.isNotEmpty && value.length != 10) {
-              return 'Must be 10 digits';
-            }
-            return null;
-          },
-        ),
-      ],
+      child: Column(
+        children: [
+          TextFormField(
+            controller: _emergencyNameController,
+            decoration:
+                _inputDecoration('Contact Person Name', Icons.person_outline),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _emergencyPhoneController,
+            keyboardType: TextInputType.phone,
+            maxLength: 10,
+            decoration:
+                _inputDecoration('Contact Phone Number', Icons.phone_outlined)
+                    .copyWith(counterText: ""),
+            validator: (value) {
+              if (value != null && value.isNotEmpty && value.length != 10) {
+                return 'Must be 10 digits';
+              }
+              return null;
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -528,21 +549,23 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
     return _buildSectionCard(
       icon: Icons.more_horiz,
       title: 'Additional Details',
-      children: [
-        TextFormField(
-          controller: _addressController,
-          maxLines: 2,
-          decoration: _inputDecoration('Address', Icons.location_on_outlined),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: _healthNotesController,
-          maxLines: 3,
-          decoration: _inputDecoration('Health Conditions / Notes',
-                  Icons.medical_information_outlined)
-              .copyWith(hintText: "e.g., knee injury, diabetes, allergies..."),
-        ),
-      ],
+      child: Column(
+        children: [
+          TextFormField(
+            controller: _addressController,
+            maxLines: 2,
+            decoration: _inputDecoration('Address', Icons.location_on_outlined),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _healthNotesController,
+            maxLines: 3,
+            decoration: _inputDecoration('Health Conditions / Notes',
+                    Icons.medical_information_outlined)
+                .copyWith(hintText: "e.g., knee injury, diabetes, allergies..."),
+          ),
+        ],
+      ),
     );
   }
 

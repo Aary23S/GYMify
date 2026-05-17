@@ -4,11 +4,15 @@ import 'package:go_router/go_router.dart';
 import 'package:gymflow/features/auth/providers/auth_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/constants/app_sizes.dart';
 import '../../../core/widgets/empty_state_widget.dart';
+import '../../../core/widgets/shimmer_loading.dart';
 import '../providers/members_provider.dart';
 import '../models/member_model.dart';
 import '../widgets/member_card.dart';
+
+final memberListShimmerProvider = FutureProvider<void>((ref) async {
+  await Future.delayed(const Duration(milliseconds: 1500));
+});
 
 class MembersListScreen extends ConsumerStatefulWidget {
   const MembersListScreen({super.key});
@@ -30,6 +34,7 @@ class _MembersListScreenState extends ConsumerState<MembersListScreen> {
   Widget build(BuildContext context) {
     final members = ref.watch(filteredMembersProvider);
     final filter = ref.watch(membersFilterProvider);
+    final shimmerState = ref.watch(memberListShimmerProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -215,23 +220,34 @@ class _MembersListScreenState extends ConsumerState<MembersListScreen> {
           ),
 
           Expanded(
-            child: members.isEmpty
-                ? const EmptyStateWidget(
-                    icon: Icons.people_outline,
-                    title: 'No members found',
-                    subtitle: 'Try adjusting your search or filters',
-                  )
-                : ListView.separated(
-                    itemCount: members.length,
-                    separatorBuilder: (context, index) => const Divider(
-                      indent: 72,
-                      height: 1,
-                      color: AppColors.border,
+            child: shimmerState.when(
+              loading: () => ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: 8,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (_, __) => const ShimmerMemberCard(),
+              ),
+              error: (err, stack) => Center(child: Text('Error: $err')),
+              data: (_) => members.isEmpty
+                  ? EmptyStateWidget(
+                      icon: Icons.people_outline,
+                      title: 'No members found',
+                      subtitle: 'Try adjusting your search or filters',
+                      actionLabel: 'Add Member',
+                      onAction: () => context.push('/members/add'),
+                    )
+                  : ListView.separated(
+                      itemCount: members.length,
+                      separatorBuilder: (context, index) => const Divider(
+                        indent: 72,
+                        height: 1,
+                        color: AppColors.border,
+                      ),
+                      itemBuilder: (context, index) {
+                        return MemberCard(member: members[index]);
+                      },
                     ),
-                    itemBuilder: (context, index) {
-                      return MemberCard(member: members[index]);
-                    },
-                  ),
+            ),
           ),
         ],
       ),

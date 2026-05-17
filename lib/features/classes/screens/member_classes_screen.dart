@@ -6,6 +6,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../members/providers/members_provider.dart';
 import '../providers/classes_provider.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 class MemberClassesScreen extends ConsumerStatefulWidget {
   const MemberClassesScreen({super.key});
@@ -320,7 +321,7 @@ class _MemberClassesScreenState extends ConsumerState<MemberClassesScreen> with 
               onPressed: () {
                 ref.read(classesProvider.notifier).bookClass(c.id, memberId);
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("✓ Booked ${c.className} for ${DateFormat('dd MMM').format(c.date)}"), backgroundColor: Colors.green));
+                SnackbarHelper.showSuccess(context, "✓ Booked ${c.className} for ${DateFormat('dd MMM').format(c.date)}");
               },
               child: const Text("Confirm Booking"),
             ),
@@ -431,7 +432,7 @@ class _MemberClassesScreenState extends ConsumerState<MemberClassesScreen> with 
                                           onPressed: () {
                                             ref.read(classesProvider.notifier).cancelBooking(c.id, memberId);
                                             Navigator.pop(ctx);
-                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Cancelled ${c.className}"), backgroundColor: Colors.red));
+                                            SnackbarHelper.showError(context, "Cancelled ${c.className}");
                                           },
                                           child: const Text("Yes, Cancel"),
                                         ),

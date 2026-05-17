@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/constants/app_sizes.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../core/widgets/gym_logo_widget.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -90,9 +90,7 @@ class SettingsScreen extends ConsumerWidget {
                   const Spacer(),
                   OutlinedButton(
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Edit profile coming soon')),
-                      );
+                      SnackbarHelper.showInfo(context, "Edit profile coming soon");
                     },
                     child: const Text("Edit Profile"),
                   ),
@@ -293,9 +291,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature coming soon')),
-    );
+    SnackbarHelper.showInfo(context, "$feature coming soon");
   }
 
   void _showLogoutDialog(BuildContext context, WidgetRef ref) {

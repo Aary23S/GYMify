@@ -12,6 +12,7 @@ import '../../../core/widgets/empty_state_widget.dart';
 import '../models/member_model.dart';
 import '../providers/members_provider.dart';
 import '../../attendance/providers/attendance_provider.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 class MemberProfileScreen extends ConsumerWidget {
   final String memberId;
@@ -88,7 +89,13 @@ class MemberProfileScreen extends ConsumerWidget {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => context.pop(),
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/dashboard');
+                        }
+                      },
                     ),
                     Row(
                       children: [
@@ -232,12 +239,7 @@ class _OverviewTab extends ConsumerWidget {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text("Reminder sent to ${member.name} ✓"),
-                  backgroundColor: AppColors.success,
-                ),
-              );
+              SnackbarHelper.showSuccess(context, "Reminder sent to ${member.name} ✓");
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,

@@ -8,16 +8,59 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/widgets/stat_card.dart';
 import '../../../core/widgets/section_header.dart';
+import '../../../core/widgets/shimmer_loading.dart';
+import '../../../core/utils/snackbar_helper.dart';
 import '../../../core/providers/navigation_provider.dart';
 import '../../auth/models/user_model.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/dashboard_provider.dart';
 
-class OwnerDashboardScreen extends ConsumerWidget {
+class OwnerDashboardScreen extends ConsumerStatefulWidget {
   const OwnerDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OwnerDashboardScreen> createState() => _OwnerDashboardScreenState();
+}
+
+class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _bellController;
+  late Animation<double> _bellAnimation;
+  bool _isLoadingStats = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _bellController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+
+    _bellAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: -0.1).chain(CurveTween(curve: Curves.easeInOut)), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -0.1, end: 0.1).chain(CurveTween(curve: Curves.easeInOut)), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 0.1, end: -0.1).chain(CurveTween(curve: Curves.easeInOut)), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -0.1, end: 0.1).chain(CurveTween(curve: Curves.easeInOut)), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 0.1, end: -0.1).chain(CurveTween(curve: Curves.easeInOut)), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -0.1, end: 0.1).chain(CurveTween(curve: Curves.easeInOut)), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 0.1, end: 0.0).chain(CurveTween(curve: Curves.easeInOut)), weight: 1),
+    ]).animate(_bellController);
+
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) {
+        setState(() => _isLoadingStats = false);
+        _bellController.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _bellController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final dashboardData = ref.watch(dashboardProvider);
     final authState = ref.watch(authProvider);
     final user = authState.user;
@@ -50,7 +93,15 @@ class OwnerDashboardScreen extends ConsumerWidget {
                     const EdgeInsets.symmetric(horizontal: AppSizes.paddingM),
                 child: Row(
                   children: [
-                    if (isManagement) ...[
+                    if (_isLoadingStats) ...[
+                      const ShimmerStatCard(),
+                      const SizedBox(width: AppSizes.paddingM),
+                      const ShimmerStatCard(),
+                      const SizedBox(width: AppSizes.paddingM),
+                      const ShimmerStatCard(),
+                      const SizedBox(width: AppSizes.paddingM),
+                      const ShimmerStatCard(),
+                    ] else if (isManagement) ...[
                       StatCard(
                         title: "Total Members",
                         value: dashboardData.totalMembers.toString(),
@@ -78,8 +129,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
                         icon: Icons.currency_rupee,
                         color: AppColors.info,
                       ),
-                    ],
-                    if (isTrainer) ...[
+                    ] else if (isTrainer) ...[
                       StatCard(
                         title: "My Members",
                         value: "24",
@@ -100,8 +150,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
                         icon: Icons.rate_review,
                         color: AppColors.warning,
                       ),
-                    ],
-                    if (isMember) ...[
+                    ] else if (isMember) ...[
                       StatCard(
                         title: "Days Left",
                         value: "18",
@@ -207,10 +256,25 @@ class OwnerDashboardScreen extends ConsumerWidget {
             builder: (context, ref, child) {
               return Row(
                 children: [
+                  AnimatedBuilder(
+                    animation: _bellAnimation,
+                    builder: (context, child) {
+                      return Transform.rotate(
+                        angle: _bellAnimation.value,
+                        child: child,
+                      );
+                    },
+                    child: IconButton(
+                      onPressed: () {
+                        SnackbarHelper.showInfo(context, "No new notifications at this time.");
+                      },
+                      icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                      tooltip: 'Notifications',
+                    ),
+                  ),
                   IconButton(
                     onPressed: () {
-                      // Navigate to settings
-                      context.push('/settings'); // Placeholder route
+                      context.push('/settings');
                     },
                     icon: const Icon(Icons.settings_outlined,
                         color: Colors.white),
@@ -243,6 +307,8 @@ class OwnerDashboardScreen extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.only(top: 16),
         child: BarChart(
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeOutCubic,
           BarChartData(
             alignment: BarChartAlignment.spaceAround,
             maxY: 20000,
@@ -321,6 +387,8 @@ class OwnerDashboardScreen extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.only(top: 16),
         child: LineChart(
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeOutCubic,
           LineChartData(
             gridData: const FlGridData(show: false),
             borderData: FlBorderData(show: false),
@@ -367,8 +435,8 @@ class OwnerDashboardScreen extends ConsumerWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      AppColors.primary.withOpacity(0.25),
-                      AppColors.primary.withOpacity(0.0)
+                      AppColors.primary.withValues(alpha: 0.25),
+                      AppColors.primary.withValues(alpha: 0.0)
                     ],
                   ),
                 ),
@@ -544,7 +612,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: color.withOpacity(0.1),
+                backgroundColor: color.withValues(alpha: 0.1),
                 child: Text(
                   member.name.trim().isNotEmpty
                       ? member.name.trim()[0].toUpperCase()
@@ -570,7 +638,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.danger.withOpacity(0.1),
+                  color: AppColors.danger.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -599,7 +667,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.accent.withOpacity(0.1),
+              color: AppColors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.fitness_center, color: AppColors.accent),

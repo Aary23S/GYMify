@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
-import '../constants/app_sizes.dart';
 import '../constants/app_text_styles.dart';
+import 'primary_button.dart';
 
 class EmptyStateWidget extends StatelessWidget {
   final IconData icon;
@@ -23,44 +23,42 @@ class EmptyStateWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSizes.paddingL),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(AppSizes.paddingL),
+              width: 120,
+              height: 120,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
                 shape: BoxShape.circle,
+                color: AppColors.primary.withValues(alpha: 0.08),
               ),
               child: Icon(
                 icon,
-                size: 64,
-                color: AppColors.primary,
+                size: 56,
+                color: AppColors.primary.withValues(alpha: 0.5),
               ),
             ),
-            const SizedBox(height: AppSizes.paddingL),
+            const SizedBox(height: 24),
             Text(
               title,
-              style: AppTextStyles.heading3,
+              style: AppTextStyles.heading2.copyWith(color: AppColors.textPrimary),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSizes.paddingS),
+            const SizedBox(height: 8),
             Text(
               subtitle,
-              style: AppTextStyles.caption,
+              style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
             if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: AppSizes.paddingL),
-              TextButton(
-                onPressed: onAction,
-                child: Text(
-                  actionLabel!,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.accent,
-                    fontWeight: FontWeight.bold,
-                  ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: 180,
+                child: PrimaryButton(
+                  text: actionLabel!,
+                  onPressed: onAction!,
                 ),
               ),
             ],

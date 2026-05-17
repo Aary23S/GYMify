@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/widgets/empty_state_widget.dart';
 import '../../members/providers/members_provider.dart';
 import '../../members/models/member_model.dart';
 import '../providers/attendance_provider.dart';
@@ -175,12 +176,24 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       children: [
         Text(label, style: AppTextStyles.caption.copyWith(color: Colors.white70)),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: AppTextStyles.displayMedium.copyWith(
-            color: Colors.white,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-            fontSize: 24,
+        TweenAnimationBuilder<double>(
+          key: ValueKey(value),
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 300),
+          builder: (context, anim, child) {
+            final scale = anim < 0.5 ? 1.0 + (anim * 0.4) : 1.2 - ((anim - 0.5) * 0.4);
+            return Transform.scale(
+              scale: scale,
+              child: child,
+            );
+          },
+          child: Text(
+            value,
+            style: AppTextStyles.displayMedium.copyWith(
+              color: Colors.white,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+              fontSize: 24,
+            ),
           ),
         ),
       ],
@@ -219,6 +232,7 @@ class _TodayLogTabState extends ConsumerState<_TodayLogTab> {
     filtered.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
 
     final filters = ['All', 'Checked In', 'Checked Out', 'Still Inside'];
+    final now = DateTime.now();
 
     return Column(
       children: [
@@ -252,15 +266,10 @@ class _TodayLogTabState extends ConsumerState<_TodayLogTab> {
         ),
         Expanded(
           child: filtered.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
-                      const SizedBox(height: 16),
-                      Text('No check-ins recorded', style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: Colors.grey[600])),
-                    ],
-                  ),
+              ? const EmptyStateWidget(
+                  icon: Icons.event_busy,
+                  title: 'No check-ins recorded',
+                  subtitle: 'No attendance logs match your active filters or search.',
                 )
               : ListView.separated(
                   itemCount: filtered.length,
@@ -273,7 +282,9 @@ class _TodayLogTabState extends ConsumerState<_TodayLogTab> {
                     final checkInStr = DateFormat('hh:mm a').format(record.checkInTime);
                     final checkOutStr = isStillInside ? "Still inside" : DateFormat('hh:mm a').format(record.checkOutTime!);
 
-                    return Card(
+                    final isNew = record.checkInTime.isAfter(now.subtract(const Duration(seconds: 4)));
+
+                    Widget card = Card(
                       elevation: 0,
                       margin: EdgeInsets.zero,
                       color: isStillInside ? Colors.orange.withValues(alpha: 0.08) : Colors.white,
@@ -324,6 +335,24 @@ class _TodayLogTabState extends ConsumerState<_TodayLogTab> {
                         ),
                       ),
                     );
+
+                    if (isNew) {
+                      return TweenAnimationBuilder<Offset>(
+                        key: ValueKey(record.id),
+                        tween: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero),
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, offset, child) {
+                          return FractionalTranslation(
+                            translation: offset,
+                            child: child,
+                          );
+                        },
+                        child: card,
+                      );
+                    }
+
+                    return card;
                   },
                 ),
         ),
@@ -409,7 +438,11 @@ class _SearchMemberTabState extends ConsumerState<_SearchMemberTab> {
         ),
         Expanded(
           child: results.isEmpty
-              ? Center(child: Text('No members found', style: TextStyle(color: Colors.grey[600])))
+              ? const EmptyStateWidget(
+                  icon: Icons.search_off,
+                  title: 'No members found',
+                  subtitle: 'Try searching with a different name or member ID.',
+                )
               : ListView.separated(
                   itemCount: results.length,
                   padding: const EdgeInsets.only(bottom: 24, left: 16, right: 16),
@@ -417,7 +450,6 @@ class _SearchMemberTabState extends ConsumerState<_SearchMemberTab> {
                   itemBuilder: (context, index) {
                     final member = results[index];
                     
-                    // Calculate mini stats for current month
                     final memberRecs = attendanceState.allRecords.where((r) => r.memberId == member.id).toList();
                     final presentDays = memberRecs.map((r) => r.date.toIso8601String()).toSet().length;
                     const totalMonthDays = 22; // Working days
