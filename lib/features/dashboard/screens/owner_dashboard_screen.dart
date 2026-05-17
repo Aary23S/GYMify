@@ -23,8 +23,7 @@ class OwnerDashboardScreen extends ConsumerWidget {
     final user = authState.user;
     final role = authState.selectedRole;
 
-    final bool isManagement =
-        role == UserRole.superAdmin || role == UserRole.admin;
+    final bool isManagement = role == UserRole.superAdmin;
     final bool isTrainer = role == UserRole.trainer;
     final bool isMember = role == UserRole.member;
 
@@ -411,19 +410,19 @@ class OwnerDashboardScreen extends ConsumerWidget {
         'label': 'Add Member',
         'icon': Icons.person_add,
         'route': '/members/add',
-        'roles': [UserRole.superAdmin, UserRole.admin]
+        'roles': [UserRole.superAdmin]
       },
       {
         'label': 'Attendance',
         'icon': Icons.qr_code_scanner,
         'route': '/attendance',
-        'roles': [UserRole.superAdmin, UserRole.admin, UserRole.trainer]
+        'roles': [UserRole.superAdmin, UserRole.trainer]
       },
       {
         'label': 'Payment',
         'icon': Icons.account_balance_wallet,
         'route': '/payments',
-        'roles': [UserRole.superAdmin, UserRole.admin]
+        'roles': [UserRole.superAdmin]
       },
       {
         'label': 'Book Class',

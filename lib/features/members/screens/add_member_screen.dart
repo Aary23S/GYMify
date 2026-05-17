@@ -479,10 +479,14 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
           value: _assignedTrainer ?? 'None',
+          isExpanded: true,
           decoration: _inputDecoration(
               'Assign Personal Trainer', Icons.person_pin_outlined),
           items: _trainers
-              .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+              .map((t) => DropdownMenuItem(
+                    value: t,
+                    child: Text(t, overflow: TextOverflow.ellipsis),
+                  ))
               .toList(),
           onChanged: (val) => setState(() => _assignedTrainer = val),
         ),

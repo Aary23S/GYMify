@@ -227,6 +227,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen>
   void _showInvoiceBottomSheet(PaymentRecord record) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) => _InvoiceBottomSheet(record: record),
@@ -369,6 +370,7 @@ class _CollectPaymentTab extends StatelessWidget {
       children: [
         DropdownButtonFormField<String>(
           value: selectedPlan,
+          isExpanded: true,
           decoration: const InputDecoration(
               labelText: 'Select Plan *',
               prefixIcon: Icon(Icons.fitness_center)),
@@ -381,7 +383,9 @@ class _CollectPaymentTab extends StatelessWidget {
               .map((p) => DropdownMenuItem(
                     value: p['name'] as String,
                     child: Text(
-                        '${p['name']} - ₹${(p['price'] as double).toInt()}'),
+                      '${p['name']} - ₹${(p['price'] as double).toInt()}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ))
               .toList(),
           onChanged: (val) {
@@ -887,7 +891,7 @@ class _InvoiceBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -965,9 +969,17 @@ class _InvoiceRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: const TextStyle(color: Colors.grey)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+        ),
       ],
     );
   }

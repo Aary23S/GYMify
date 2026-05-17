@@ -317,16 +317,21 @@ class _InfoItem extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
             style: AppTextStyles.caption.copyWith(color: Colors.grey[600]),
           ),
-          Text(
-            value,
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: isLink ? AppColors.primary : AppColors.textPrimary,
-              fontWeight: isLink ? FontWeight.bold : FontWeight.normal,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: isLink ? AppColors.primary : AppColors.textPrimary,
+                fontWeight: isLink ? FontWeight.bold : FontWeight.normal,
+              ),
             ),
           ),
         ],

@@ -83,7 +83,7 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,

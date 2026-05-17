@@ -1,6 +1,5 @@
 enum UserRole {
   superAdmin,
-  admin,
   trainer,
   member;
 
@@ -8,8 +7,6 @@ enum UserRole {
     switch (this) {
       case UserRole.superAdmin:
         return 'Owner';
-      case UserRole.admin:
-        return 'Admin';
       case UserRole.trainer:
         return 'Trainer';
       case UserRole.member:
@@ -40,13 +37,6 @@ final dummyUsers = {
     name: 'John Doe',
     email: 'owner@gymflow.com',
     role: UserRole.superAdmin,
-    gymName: 'Iron Paradise',
-  ),
-  UserRole.admin: const UserModel(
-    id: '2',
-    name: 'Jane Smith',
-    email: 'admin@gymflow.com',
-    role: UserRole.admin,
     gymName: 'Iron Paradise',
   ),
   UserRole.trainer: const UserModel(

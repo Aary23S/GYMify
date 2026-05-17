@@ -41,18 +41,6 @@ class AuthState {
     switch (selectedRole) {
       case UserRole.superAdmin:
         return AppPermission.values.toSet();
-      case UserRole.admin:
-        return {
-          AppPermission.viewDashboard,
-          AppPermission.manageMembers,
-          AppPermission.manageTrainers,
-          AppPermission.viewAttendance,
-          AppPermission.manageAttendance,
-          AppPermission.managePayments,
-          AppPermission.manageClasses,
-          AppPermission.viewReports,
-          AppPermission.manageSettings,
-        };
       case UserRole.trainer:
         return {
           AppPermission.viewDashboard,
