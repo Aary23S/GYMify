@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../auth/providers/auth_provider.dart';
-import '../../auth/models/user_model.dart';
 import 'package:intl/intl.dart';
-import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../core/widgets/empty_state_widget.dart';
+import '../../../core/utils/snackbar_helper.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../auth/models/user_model.dart';
 import '../models/member_model.dart';
 import '../providers/members_provider.dart';
 import '../../attendance/providers/attendance_provider.dart';
-import '../../../core/utils/snackbar_helper.dart';
+import '../../workout/providers/workout_provider.dart';
 
 class MemberProfileScreen extends ConsumerWidget {
   final String memberId;
@@ -25,6 +25,9 @@ class MemberProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final member = ref.watch(memberByIdProvider(memberId));
+    final authState = ref.watch(authProvider);
+    final currentUser = authState.user;
+    final role = authState.selectedRole;
 
     if (member == null) {
       return const Scaffold(
@@ -32,31 +35,36 @@ class MemberProfileScreen extends ConsumerWidget {
       );
     }
 
+    final bool isOwnProfile = role == UserRole.member &&
+        (currentUser?.name == member.name || currentUser?.id == member.id);
+
+    final int tabLength = isOwnProfile ? 3 : 4;
+
     return DefaultTabController(
-      length: 4,
+      length: tabLength,
       child: Scaffold(
         body: Column(
           children: [
             _buildHeroHeader(context, ref, member),
-            const TabBar(
+            TabBar(
               isScrollable: true,
               labelColor: AppColors.primary,
               unselectedLabelColor: Colors.grey,
               indicatorColor: AppColors.primary,
               tabs: [
-                Tab(text: 'Overview'),
-                Tab(text: 'Attendance'),
-                Tab(text: 'Payments'),
-                Tab(text: 'Workout'),
+                const Tab(text: 'Overview'),
+                if (!isOwnProfile) const Tab(text: 'Attendance'),
+                const Tab(text: 'Payments'),
+                const Tab(text: 'Workout'),
               ],
             ),
             Expanded(
               child: TabBarView(
                 children: [
-                  _OverviewTab(member: member),
-                  _AttendanceTab(member: member),
+                  _OverviewTab(member: member, isOwnProfile: isOwnProfile),
+                  if (!isOwnProfile) _AttendanceTab(member: member),
                   _PaymentsTab(member: member),
-                  _WorkoutTab(member: member),
+                  _WorkoutTab(member: member, isOwnProfile: isOwnProfile),
                 ],
               ),
             ),
@@ -97,44 +105,33 @@ class MemberProfileScreen extends ConsumerWidget {
                         }
                       },
                     ),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.white),
-                          onPressed: () {},
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, color: Colors.white),
+                      onSelected: (value) {
+                        if (value == 'logout') {
+                          ref.read(authProvider.notifier).logout();
+                          context.go('/login');
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'deactivate',
+                          child: Text('Deactivate'),
                         ),
-                        PopupMenuButton<String>(
-                          icon:
-                              const Icon(Icons.more_vert, color: Colors.white),
-                          onSelected: (value) {
-                            if (value == 'logout') {
-                              ref.read(authProvider.notifier).logout();
-                              context.go('/login');
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'deactivate',
-                              child: Text('Deactivate'),
-                            ),
-                            const PopupMenuItem(
-                              value: 'notes',
-                              child: Text('Notes'),
-                            ),
-                            const PopupMenuDivider(),
-                            const PopupMenuItem(
-                              value: 'logout',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.logout,
-                                      size: 20, color: Colors.red),
-                                  SizedBox(width: 8),
-                                  Text('Logout',
-                                      style: TextStyle(color: Colors.red)),
-                                ],
-                              ),
-                            ),
-                          ],
+                        const PopupMenuItem(
+                          value: 'notes',
+                          child: Text('Notes'),
+                        ),
+                        const PopupMenuDivider(),
+                        const PopupMenuItem(
+                          value: 'logout',
+                          child: Row(
+                            children: [
+                              Icon(Icons.logout, size: 20, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Logout', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -172,12 +169,11 @@ class MemberProfileScreen extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Text(
                     member.planName,
-                    style:
-                        AppTextStyles.caption.copyWith(color: Colors.white70),
+                    style: AppTextStyles.caption.copyWith(color: Colors.white70),
                   ),
                 ],
               ),
-              const SizedBox(height: 20), // Extra space at bottom
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -188,8 +184,9 @@ class MemberProfileScreen extends ConsumerWidget {
 
 class _OverviewTab extends ConsumerWidget {
   final Member member;
+  final bool isOwnProfile;
 
-  const _OverviewTab({required this.member});
+  const _OverviewTab({required this.member, required this.isOwnProfile});
 
   void _showSendNotificationDialog(BuildContext context, Member member) {
     final firstName = member.name.split(' ').first;
@@ -278,6 +275,7 @@ class _OverviewTab extends ConsumerWidget {
           _buildInfoCard(
             title: 'Membership Details',
             items: [
+              _InfoItem(label: 'Branch', value: member.branch),
               _InfoItem(label: 'Plan', value: member.planName),
               _InfoItem(
                   label: 'Join Date',
@@ -317,7 +315,7 @@ class _OverviewTab extends ConsumerWidget {
                 onPressed: () => _showSendNotificationDialog(context, member),
               ),
             ),
-          ] else if (role == UserRole.member) ...[
+          ] else if (isOwnProfile) ...[
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -353,8 +351,7 @@ class _OverviewTab extends ConsumerWidget {
           children: [
             Text(
               title,
-              style: AppTextStyles.bodyMedium
-                  .copyWith(fontWeight: FontWeight.bold),
+              style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold),
             ),
             const Divider(height: 24),
             ...items,
@@ -414,147 +411,125 @@ class _AttendanceTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final attendanceState = ref.watch(attendanceProvider);
 
-    // Filter attendance records for this specific member
-    final memberRecords = attendanceState.todaysRecords
-        .where((r) => r.memberId == member.id)
+    // Filter all records for this specific member
+    final memberRecords = attendanceState.allRecords
+        .where((r) => r.memberId == member.id || r.memberName == member.name)
         .toList();
 
-    // Sort records by time (newest first)
     memberRecords.sort((a, b) => b.checkInTime.compareTo(a.checkInTime));
 
-    final presentDateSet = memberRecords
-        .map((r) => DateTime(r.checkInTime.year, r.checkInTime.month, r.checkInTime.day))
-        .toSet();
-
     final now = DateTime.now();
-    final nowDate = DateTime(now.year, now.month, now.day);
-    final firstDayOfMonth = DateTime(now.year, now.month, 1);
-    final daysElapsed = nowDate.difference(firstDayOfMonth).inDays + 1;
-
-    final presentCount = presentDateSet
-        .where((d) => d.year == now.year && d.month == now.month && !d.isAfter(nowDate))
-        .length;
-    final absentCount = (daysElapsed - presentCount) > 0 ? (daysElapsed - presentCount) : 0;
-    final percentage = daysElapsed > 0 ? (presentCount / daysElapsed * 100).round() : 100;
+    final thisMonthRecords = memberRecords
+        .where((r) => r.checkInTime.year == now.year && r.checkInTime.month == now.month)
+        .toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Card(
-            elevation: 0,
-            color: AppColors.primary.withValues(alpha: 0.05),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const Icon(Icons.calendar_today, color: AppColors.primary),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Present $presentCount days | Absent $absentCount days | $percentage% attendance",
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          '🔥 Active Member',
-                          style: TextStyle(color: Colors.orange, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+          // Monthly Summary Row
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
             ),
-          ),
-          const SizedBox(height: 16),
-          CalendarDatePicker2(
-            config: CalendarDatePicker2Config(
-              calendarType: CalendarDatePicker2Type.single,
-              dayBuilder: ({
-                required DateTime date,
-                TextStyle? textStyle,
-                BoxDecoration? decoration,
-                bool? isSelected,
-                bool? isDisabled,
-                bool? isToday,
-              }) {
-                final isPresent = presentDateSet.contains(DateTime(date.year, date.month, date.day));
-                final isPast = date.isBefore(nowDate);
-                final isAbsent = isPast && !isPresent;
-
-                return Center(
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.calendar_month, color: AppColors.primary, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        date.day.toString(),
-                        style: textStyle,
+                        "This Month: ${thisMonthRecords.length} Check-ins",
+                        style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.primaryDark),
                       ),
-                      if (isPresent)
-                        const Icon(Icons.circle, size: 6, color: Colors.green)
-                      else if (isAbsent)
-                        const Icon(Icons.circle, size: 6, color: Colors.red)
-                      else
-                        const SizedBox(height: 6),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Consistent activity tracked at ${member.branch}",
+                        style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                      ),
                     ],
                   ),
-                );
-              },
-            ),
-            value: const [],
-          ),
-          const SizedBox(height: 16),
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Attendance Log',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 24),
+          Text(
+            'Recent Attendance Log',
+            style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
           if (memberRecords.isEmpty)
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Text('No attendance records found',
-                  style: TextStyle(color: Colors.grey)),
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(
+                child: Text('No attendance records found', style: TextStyle(color: Colors.grey)),
+              ),
             )
           else
             ...memberRecords.take(10).map((record) {
+              final dateStr = DateFormat('EEE, dd MMM yyyy').format(record.checkInTime);
               final checkInStr = DateFormat('hh:mm a').format(record.checkInTime);
-              // Generate dummy check-out time 75 minutes later
-              final checkOutTime = record.checkInTime.add(const Duration(minutes: 75));
-              final checkOutStr = checkOutTime.isAfter(DateTime.now()) ? "--" : DateFormat('hh:mm a').format(checkOutTime);
+              final checkOutStr = record.checkOutTime != null ? DateFormat('hh:mm a').format(record.checkOutTime!) : "--";
+              final durationStr = _calculateDuration(record.checkInTime, record.checkOutTime);
 
               return Card(
                 elevation: 0,
-                margin: const EdgeInsets.only(bottom: 8),
+                margin: const EdgeInsets.only(bottom: 10),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                   side: const BorderSide(color: AppColors.border),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          DateFormat('EEEE, dd MMM yyyy').format(record.checkInTime),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: record.checkOutTime == null ? AppColors.accent.withValues(alpha: 0.1) : AppColors.success.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          record.checkOutTime == null ? Icons.run_circle : Icons.check_circle,
+                          color: record.checkOutTime == null ? AppColors.accent : AppColors.success,
+                          size: 20,
                         ),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text("Check-in: $checkInStr", style: AppTextStyles.caption),
-                          Text("Check-out: $checkOutStr", style: AppTextStyles.caption.copyWith(color: checkOutStr == "--" ? Colors.grey : AppColors.textSecondary)),
-                        ],
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(dateStr, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 2),
+                            Text("In: $checkInStr • Out: $checkOutStr", style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          durationStr,
+                          style: AppTextStyles.label.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ],
                   ),
@@ -564,6 +539,15 @@ class _AttendanceTab extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  String _calculateDuration(DateTime inTime, DateTime? outTime) {
+    if (outTime == null) return "In Gym";
+    final diff = outTime.difference(inTime);
+    if (diff.inHours > 0) {
+      return "${diff.inHours}h ${diff.inMinutes % 60}m";
+    }
+    return "${diff.inMinutes}m";
   }
 }
 
@@ -581,8 +565,7 @@ class _PaymentsTab extends StatelessWidget {
           Card(
             elevation: 0,
             color: Colors.green.withValues(alpha: 0.05),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -615,20 +598,20 @@ class _PaymentsTab extends StatelessWidget {
           const SizedBox(height: 12),
           _buildPaymentCard(
             date: DateTime(2026, 3, 5),
-            plan: 'Monthly Standard',
-            amount: 2000,
+            plan: member.planName,
+            amount: member.planPrice.toDouble(),
             mode: 'UPI',
           ),
           _buildPaymentCard(
             date: DateTime(2026, 2, 5),
-            plan: 'Monthly Standard',
-            amount: 2000,
+            plan: member.planName,
+            amount: member.planPrice.toDouble(),
             mode: 'Cash',
           ),
           _buildPaymentCard(
             date: DateTime(2026, 1, 5),
-            plan: 'Monthly Standard',
-            amount: 2000,
+            plan: member.planName,
+            amount: member.planPrice.toDouble(),
             mode: 'UPI',
           ),
         ],
@@ -657,7 +640,7 @@ class _PaymentsTab extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              '₹$amount',
+              '₹${amount.toInt()}',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             Container(
@@ -678,86 +661,128 @@ class _PaymentsTab extends StatelessWidget {
   }
 }
 
-class _WorkoutTab extends StatelessWidget {
+class _WorkoutTab extends ConsumerWidget {
   final Member member;
+  final bool isOwnProfile;
 
-  const _WorkoutTab({required this.member});
+  const _WorkoutTab({required this.member, required this.isOwnProfile});
 
   @override
-  Widget build(BuildContext context) {
-    if (member.assignedTrainerName == null) {
-      return const EmptyStateWidget(
-        icon: Icons.fitness_center,
-        title: 'No workout plan assigned',
-        subtitle: 'Assign a trainer to create a workout plan',
+  Widget build(BuildContext context, WidgetRef ref) {
+    final plans = ref.watch(workoutPlansProvider);
+    final plan = plans.where((p) => p.memberId == member.id || p.memberName == member.name).firstOrNull;
+
+    if (plan == null) {
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const EmptyStateWidget(
+              icon: Icons.fitness_center,
+              title: 'No workout plan assigned',
+              subtitle: 'A custom workout routine has not been created yet.',
+            ),
+            if (isOwnProfile || ref.watch(authProvider).role == UserRole.trainer) ...[
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.add),
+                label: const Text("Create Workout Plan"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => context.push('/member/workout'),
+              ),
+            ],
+          ],
+        ),
       );
     }
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text(
-          'Active Plan: Muscle Building v2',
-          style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        _buildWorkoutDay(
-          day: 'Day 1',
-          target: 'Chest & Triceps',
-          exercises: [
-            'Bench Press (3 sets × 12 reps)',
-            'Incline DB Press (3 sets × 10 reps)',
-            'Cable Flyes (3 sets × 15 reps)',
-            'Tricep Pushdowns (3 sets × 12 reps)',
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                _getGoalBadge(plan.goal),
+                style: const TextStyle(color: AppColors.accentDark, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+            if (plan.isCreatedByMember)
+              Chip(
+                label: const Text("Created by Member", style: TextStyle(fontSize: 11, color: Colors.blue, fontWeight: FontWeight.bold)),
+                backgroundColor: Colors.blue.withValues(alpha: 0.1),
+                side: BorderSide.none,
+              ),
           ],
         ),
-        _buildWorkoutDay(
-          day: 'Day 2',
-          target: 'Back & Biceps',
-          exercises: [
-            'Lat Pulldowns (3 sets × 12 reps)',
-            'Seated Rows (3 sets × 10 reps)',
-            'Deadlifts (3 sets × 8 reps)',
-            'Hammer Curls (3 sets × 12 reps)',
-          ],
-        ),
-        _buildWorkoutDay(
-          day: 'Day 3',
-          target: 'Legs & Shoulders',
-          exercises: [
-            'Squats (3 sets × 10 reps)',
-            'Leg Press (3 sets × 12 reps)',
-            'Overhead Press (3 sets × 10 reps)',
-            'Lateral Raises (3 sets × 15 reps)',
-          ],
-        ),
+        if (isOwnProfile) ...[
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.edit, size: 16),
+              label: const Text("Edit Plan"),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => context.push('/member/workout'),
+            ),
+          ),
+        ],
+        const SizedBox(height: 20),
+        ...plan.days.map((day) {
+          return Card(
+            elevation: 0,
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: AppColors.border, width: 1.5),
+            ),
+            child: ExpansionTile(
+              title: Text(day.dayLabel, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
+              children: day.exercises.map((ex) {
+                return ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.fitness_center, size: 18, color: AppColors.primary),
+                  ),
+                  title: Text(ex.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      "${ex.sets} sets × ${ex.reps} reps • Rest: ${ex.restSeconds}s" + (ex.notes != null ? "\nNotes: ${ex.notes}" : ""),
+                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary, height: 1.3),
+                    ),
+                  ),
+                  isThreeLine: ex.notes != null,
+                );
+              }).toList(),
+            ),
+          );
+        }),
       ],
     );
   }
 
-  Widget _buildWorkoutDay({
-    required String day,
-    required String target,
-    required List<String> exercises,
-  }) {
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.border),
-      ),
-      child: ExpansionTile(
-        title: Text('$day: $target',
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        children: exercises
-            .map((ex) => ListTile(
-                  leading: const Icon(Icons.circle, size: 8),
-                  title: Text(ex),
-                  dense: true,
-                ))
-            .toList(),
-      ),
-    );
+  String _getGoalBadge(String goal) {
+    if (goal == 'muscle_gain') return "💪 Muscle Gain";
+    if (goal == 'weight_loss') return "🔥 Weight Loss";
+    return "🎯 General Fitness";
   }
 }

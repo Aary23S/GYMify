@@ -193,13 +193,9 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> wit
                   const SectionHeader(title: "Quick Actions"),
                   _buildQuickActions(context, ref, role),
                   if (isManagement) ...[
-                    SectionHeader(
-                      title: "Expiring Soon",
-                      actionLabel: "View All",
-                      onAction: () {},
-                    ),
-                    _buildExpiringMembersList(
-                        List<dynamic>.from(dashboardData.expiringMembers)),
+                    const SectionHeader(title: "Expiring Soon"),
+                    ExpandableExpiryList(
+                        expiringMembers: List<dynamic>.from(dashboardData.expiringMembers)),
                   ],
                   if (isMember) ...[
                     const SectionHeader(title: "My Upcoming Classes"),
@@ -493,30 +489,6 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> wit
         'roles': [UserRole.owner]
       },
       {
-        'label': 'Schedule Class',
-        'icon': Icons.calendar_today,
-        'route': '/classes',
-        'roles': [UserRole.owner, UserRole.trainer]
-      },
-      {
-        'label': 'View Reports',
-        'icon': Icons.bar_chart,
-        'route': '/reports',
-        'roles': [UserRole.owner]
-      },
-      {
-        'label': 'Add Trainer',
-        'icon': Icons.badge,
-        'route': '/trainers/add',
-        'roles': [UserRole.owner]
-      },
-      {
-        'label': 'Book Class',
-        'icon': Icons.add_task,
-        'route': '/classes',
-        'roles': [UserRole.member]
-      },
-      {
         'label': 'My Progress',
         'icon': Icons.trending_up,
         'route': '/progress',
@@ -585,75 +557,6 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> wit
     );
   }
 
-  Widget _buildExpiringMembersList(List<dynamic> expiringMembers) {
-    final List<Color> avatarColors = [
-      Colors.blue.shade700,
-      Colors.teal.shade700,
-      AppColors.warning,
-      Colors.purple.shade700,
-      AppColors.danger
-    ];
-
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: expiringMembers.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final member = expiringMembers[index];
-        final color = avatarColors[index % avatarColors.length];
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border, width: 1.5),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: color.withValues(alpha: 0.1),
-                child: Text(
-                  member.name.trim().isNotEmpty
-                      ? member.name.trim()[0].toUpperCase()
-                      : '?',
-                  style: TextStyle(color: color, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(member.name,
-                        style: AppTextStyles.bodyMedium.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary)),
-                    Text("Expires: ${member.expiryDate}",
-                        style: AppTextStyles.caption
-                            .copyWith(color: AppColors.textSecondary)),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.danger.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  "${member.daysLeft} days",
-                  style: AppTextStyles.label.copyWith(
-                      color: AppColors.danger, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildUpcomingClasses() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -696,3 +599,91 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> wit
     );
   }
 }
+
+class ExpandableExpiryList extends StatefulWidget {
+  final List<dynamic> expiringMembers;
+
+  const ExpandableExpiryList({super.key, required this.expiringMembers});
+
+  @override
+  State<ExpandableExpiryList> createState() => _ExpandableExpiryListState();
+}
+
+class _ExpandableExpiryListState extends State<ExpandableExpiryList> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final members = widget.expiringMembers;
+    final displayCount = _isExpanded ? members.length : (members.length > 5 ? 5 : members.length);
+    final List<Color> avatarColors = [
+      Colors.blue.shade700,
+      Colors.teal.shade700,
+      AppColors.warning,
+      Colors.purple.shade700,
+      AppColors.danger
+    ];
+
+    return Column(
+      children: [
+        AnimatedSize(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: displayCount,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final member = members[index];
+              final color = avatarColors[index % avatarColors.length];
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border, width: 1.5),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: color.withValues(alpha: 0.1),
+                      child: Text(
+                        member.name.trim().isNotEmpty ? member.name.trim()[0].toUpperCase() : '?',
+                        style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(member.name, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                          Text("Expires: ${member.expiryDate}", style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(color: AppColors.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                      child: Text("${member.daysLeft} days", style: AppTextStyles.label.copyWith(color: AppColors.danger, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        if (members.length > 5) ...[
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: () => setState(() => _isExpanded = !_isExpanded),
+            icon: Icon(_isExpanded ? Icons.expand_less : Icons.expand_more, color: AppColors.primary),
+            label: Text(_isExpanded ? "Show Less" : "View All (${members.length})", style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+          ),
+        ],
+      ],
+    );
+  }
+}
+

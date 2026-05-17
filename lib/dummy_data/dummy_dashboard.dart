@@ -69,5 +69,12 @@ class DummyDashboardData {
     ExpiringMember('Vikram Singh', 'Yearly Gold', 1, '08 May 2026'),
     ExpiringMember('Sneha Reddy', 'Monthly Basic', 7, '14 May 2026'),
     ExpiringMember('Amit Kumar', 'Monthly Pro', 3, '10 May 2026'),
+    ExpiringMember('Karan Johar', 'Quarterly', 4, '11 May 2026'),
+    ExpiringMember('Pooja Hegde', 'Monthly Pro', 2, '09 May 2026'),
+    ExpiringMember('Tiger Shroff', 'Yearly Gold', 6, '13 May 2026'),
+    ExpiringMember('Disha Patani', 'Monthly Basic', 1, '08 May 2026'),
+    ExpiringMember('Shahid Kapoor', 'Monthly Pro', 5, '12 May 2026'),
+    ExpiringMember('Kiara Advani', 'Quarterly', 3, '10 May 2026'),
+    ExpiringMember('Siddharth Malhotra', 'Yearly Gold', 7, '14 May 2026'),
   ];
 }

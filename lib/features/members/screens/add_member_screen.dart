@@ -166,6 +166,7 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
         address: _addressController.text.trim(),
         emergencyContactName: _emergencyNameController.text.trim(),
         emergencyContactPhone: _emergencyPhoneController.text.trim(),
+        branch: 'Branch A',
       );
 
       membersNotifier.addMember(newMember);

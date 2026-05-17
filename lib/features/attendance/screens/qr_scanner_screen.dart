@@ -8,9 +8,6 @@ import '../../members/providers/members_provider.dart';
 import '../providers/attendance_provider.dart';
 import '../../../core/utils/snackbar_helper.dart';
 
-// Phase 2 Note: Replace _simulateScan() with mobile_scanner widget
-// MobileScanner(onDetect: (capture) { decode QR -> call same provider methods })
-
 class QrScannerScreen extends ConsumerStatefulWidget {
   final String action; // 'checkin' or 'checkout'
 
@@ -23,7 +20,8 @@ class QrScannerScreen extends ConsumerStatefulWidget {
 class _QrScannerScreenState extends ConsumerState<QrScannerScreen> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scanAnimation;
-  bool _isScanning = false;
+  bool _isDetected = false;
+  bool _isProcessing = false;
 
   @override
   void initState() {
@@ -36,6 +34,13 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> with SingleTi
     _scanAnimation = Tween<double>(begin: 0.05, end: 0.95).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+
+    // Auto-simulate scan after 1.5s
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        _onQrDetected();
+      }
+    });
   }
 
   @override
@@ -44,14 +49,15 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> with SingleTi
     super.dispose();
   }
 
-  Future<void> _simulateScan() async {
-    if (_isScanning) return;
+  Future<void> _onQrDetected() async {
+    if (_isProcessing) return;
     setState(() {
-      _isScanning = true;
+      _isDetected = true;
+      _isProcessing = true;
     });
 
-    // Simulate scanning time
-    await Future.delayed(const Duration(milliseconds: 1500));
+    // Pause briefly to show the green "QR Detected" border and banner
+    await Future.delayed(const Duration(milliseconds: 800));
 
     if (!mounted) return;
 
@@ -69,11 +75,11 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> with SingleTi
         await attendanceNotifier.markCheckIn(member.id, member.name, member.memberCode, member.planName);
         if (!mounted) return;
         final time = attendanceNotifier.getTodayCheckInTime(member.id) ?? DateFormat('hh:mm a').format(DateTime.now());
-        context.pop();
-        SnackbarHelper.showSuccess(context, "✓ Check-in recorded at $time");
+        context.go('/dashboard');
+        SnackbarHelper.showSuccess(context, "Checked in successfully at $time ✓");
       } on AlreadyCheckedInException catch (e) {
         if (!mounted) return;
-        context.pop();
+        context.go('/dashboard');
         SnackbarHelper.showWarning(context, "Already checked in today at ${e.time}");
       }
     } else if (widget.action == 'checkout') {
@@ -91,18 +97,20 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> with SingleTi
           final m = diff.inMinutes % 60;
           duration = h > 0 ? "${h}h ${m}m" : "${m}m";
         }
-        context.pop();
-        SnackbarHelper.showSuccess(context, "✓ Check-out recorded at $time · Duration: $duration");
+        context.go('/dashboard');
+        SnackbarHelper.showSuccess(context, "Checked out successfully at $time (Duration: $duration) ✓");
       } on NotCheckedInException catch (_) {
         if (!mounted) return;
-        context.pop();
-        SnackbarHelper.showError(context, "No check-in found for today");
+        context.go('/dashboard');
+        SnackbarHelper.showError(context, "No check-in record found for today.");
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentBranch = ref.watch(authProvider).user?.currentBranch ?? 'Branch A';
+
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
       appBar: AppBar(
@@ -114,54 +122,86 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> with SingleTi
             if (context.canPop()) {
               context.pop();
             } else {
-              context.go('/attendance');
+              context.go('/dashboard');
             }
           },
         ),
-        title: const Text('Scan QR Code', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Scan Gym QR', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            if (_isDetected)
+              Container(
+                margin: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.green, width: 2),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.green, size: 24),
+                    const SizedBox(width: 10),
+                    Text("QR Detected: $currentBranch Reception", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                  ],
+                ),
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.only(bottom: 24),
+                child: Text(
+                  "Align reception QR code within frame",
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                ),
+              ),
             Stack(
               alignment: Alignment.center,
               children: [
-                // Camera Viewfinder Box
-                Container(
+                // Viewfinder Box
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
                   width: 280,
                   height: 280,
                   decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white, width: 2),
+                    color: _isDetected ? Colors.green.withValues(alpha: 0.1) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: _isDetected ? Colors.green : Colors.white, width: _isDetected ? 4 : 2),
                     boxShadow: [
-                      BoxShadow(color: AppColors.accent.withValues(alpha: 0.15), blurRadius: 30, spreadRadius: 5),
+                      BoxShadow(
+                        color: _isDetected ? Colors.green.withValues(alpha: 0.3) : AppColors.accent.withValues(alpha: 0.15),
+                        blurRadius: 30,
+                        spreadRadius: 5,
+                      ),
                     ],
                   ),
                 ),
-                // Animated Scanning Line
-                AnimatedBuilder(
-                  animation: _scanAnimation,
-                  builder: (context, child) {
-                    return Positioned(
-                      top: 280 * _scanAnimation.value,
-                      child: Container(
-                        width: 260,
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(color: Colors.white, blurRadius: 8, spreadRadius: 2),
-                          ],
+                // Animated Scanning Line (Hide when detected)
+                if (!_isDetected)
+                  AnimatedBuilder(
+                    animation: _scanAnimation,
+                    builder: (context, child) {
+                      return Positioned(
+                        top: 280 * _scanAnimation.value,
+                        child: Container(
+                          width: 260,
+                          height: 3,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(color: Colors.white, blurRadius: 8, spreadRadius: 2),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
                 // Center Crosshair
-                const Icon(Icons.add, color: Colors.white54, size: 40),
+                if (!_isDetected) const Icon(Icons.add, color: Colors.white54, size: 40),
                 // Corner Decorators
                 Positioned(top: 0, left: 0, child: _buildCornerAccent(isTop: true, isLeft: true)),
                 Positioned(top: 0, right: 0, child: _buildCornerAccent(isTop: true, isLeft: false)),
@@ -170,25 +210,14 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> with SingleTi
               ],
             ),
             const SizedBox(height: 40),
-            if (_isScanning) ...[
+            if (_isDetected) ...[
+              const CircularProgressIndicator(color: Colors.green),
+              const SizedBox(height: 16),
+              Text(widget.action == 'checkin' ? "Recording check-in..." : "Recording check-out...", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            ] else ...[
               const CircularProgressIndicator(color: AppColors.accent),
               const SizedBox(height: 16),
-              const Text("Scanning QR...", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-            ] else ...[
-              const Text("Point camera at member's QR code", style: TextStyle(color: Colors.white, fontSize: 16)),
-              const SizedBox(height: 8),
-              const Text("or", style: TextStyle(color: Colors.white54, fontSize: 12)),
-              const SizedBox(height: 24),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.play_arrow, color: Colors.white),
-                label: const Text("Simulate QR Scan ▶", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.white, width: 2),
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                ),
-                onPressed: _simulateScan,
-              ),
+              const Text("Searching for gym QR code...", style: TextStyle(color: Colors.white70, fontSize: 14)),
             ],
           ],
         ),
@@ -202,10 +231,10 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> with SingleTi
       height: 30,
       decoration: BoxDecoration(
         border: Border(
-          top: isTop ? const BorderSide(color: AppColors.accent, width: 6) : BorderSide.none,
-          bottom: !isTop ? const BorderSide(color: AppColors.accent, width: 6) : BorderSide.none,
-          left: isLeft ? const BorderSide(color: AppColors.accent, width: 6) : BorderSide.none,
-          right: !isLeft ? const BorderSide(color: AppColors.accent, width: 6) : BorderSide.none,
+          top: isTop ? BorderSide(color: _isDetected ? Colors.green : AppColors.accent, width: 6) : BorderSide.none,
+          bottom: !isTop ? BorderSide(color: _isDetected ? Colors.green : AppColors.accent, width: 6) : BorderSide.none,
+          left: isLeft ? BorderSide(color: _isDetected ? Colors.green : AppColors.accent, width: 6) : BorderSide.none,
+          right: !isLeft ? BorderSide(color: _isDetected ? Colors.green : AppColors.accent, width: 6) : BorderSide.none,
         ),
       ),
     );

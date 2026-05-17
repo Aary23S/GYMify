@@ -9,8 +9,7 @@ import '../../../core/widgets/section_header.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../members/providers/members_provider.dart';
 import '../../attendance/providers/attendance_provider.dart';
-import '../../classes/providers/classes_provider.dart';
-import '../../../core/utils/snackbar_helper.dart';
+import '../../workout/providers/workout_provider.dart';
 
 class MemberDashboardScreen extends ConsumerWidget {
   const MemberDashboardScreen({super.key});
@@ -19,14 +18,16 @@ class MemberDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
     final allMembers = ref.watch(membersProvider);
-    final allClasses = ref.watch(classesProvider);
     final attendanceState = ref.watch(attendanceProvider);
+    final workoutPlans = ref.watch(workoutPlansProvider);
 
     // Get current logged-in member details
     final member = allMembers.firstWhere(
       (m) => m.name == authState.user?.name,
       orElse: () => allMembers.first,
     );
+
+    final workoutPlan = workoutPlans.where((p) => p.memberId == member.id || p.memberName == member.name).firstOrNull;
 
     // Plan info calculations
     final now = DateTime.now();
@@ -38,7 +39,7 @@ class MemberDashboardScreen extends ConsumerWidget {
     final progressVal = (daysLeft / totalPlanDays).clamp(0.0, 1.0);
 
     // Progress calculations
-    final memberRecs = attendanceState.allRecords.where((r) => r.memberId == member.id).toList();
+    final memberRecs = attendanceState.allRecords.where((r) => r.memberId == member.id || r.memberName == member.name).toList();
     final presentDates = memberRecs.map((r) => DateTime(r.date.year, r.date.month, r.date.day)).toSet();
 
     // Workouts this month
@@ -66,13 +67,6 @@ class MemberDashboardScreen extends ConsumerWidget {
 
     final estimatedCalories = workoutsCount * 450;
     final caloriesFormatted = estimatedCalories > 1000 ? "${(estimatedCalories / 1000).toStringAsFixed(1)}K" : estimatedCalories.toString();
-
-    // Classes schedule
-    final memberClasses = allClasses.where((c) => c.isBookedBy(member.id)).toList();
-    memberClasses.sort((a, b) => a.date.compareTo(b.date));
-
-    final todayClasses = memberClasses.where((c) => c.date.year == now.year && c.date.month == now.month && c.date.day == now.day).toList();
-    final upcomingClasses = memberClasses.where((c) => c.date.isAfter(nowDate) || (c.date.isAtSameMomentAs(nowDate) && _isUpcomingTime(c.startTime, now))).take(3).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -262,69 +256,64 @@ class MemberDashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 32),
 
-            // Today's Schedule Section
+            // My Workout Routine Quick Preview
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text("Today's Classes", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textPrimary)),
-                      TextButton(
-                        onPressed: () => context.push('/member/classes'),
-                        child: const Text("Book More →", style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (todayClasses.isNotEmpty)
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      clipBehavior: Clip.none,
-                      child: Row(
-                        children: todayClasses.map((c) => _buildTodayClassCard(context, c, now)).toList(),
+                  const SectionHeader(title: "My Workout Routine"),
+                  const SizedBox(height: 16),
+                  if (workoutPlan != null)
+                    Card(
+                      elevation: 0,
+                      margin: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: AppColors.border, width: 1.5)),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => context.push('/my-profile'),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16)),
+                                child: const Icon(Icons.fitness_center, color: AppColors.accent, size: 32),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text("${workoutPlan.planName} — ${_formatGoal(workoutPlan.goal)}", style: AppTextStyles.heading3.copyWith(color: AppColors.textPrimary)),
+                                    const SizedBox(height: 4),
+                                    Text("${workoutPlan.days.length} workout days · Tap to view full routine", style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right, color: Colors.grey),
+                            ],
+                          ),
+                        ),
                       ),
                     )
                   else
                     Container(
-                      width: double.infinity,
                       padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.border, width: 1.5)),
                       child: Column(
                         children: [
-                          Icon(Icons.event_busy, size: 40, color: Colors.grey[400]),
+                          Icon(Icons.assignment_add, size: 40, color: Colors.grey[400]),
                           const SizedBox(height: 12),
-                          Text("No classes booked today", style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 12),
-                          OutlinedButton(
-                            style: OutlinedButton.styleFrom(foregroundColor: AppColors.accent, side: const BorderSide(color: AppColors.accent)),
-                            onPressed: () => context.push('/member/classes'),
-                            child: const Text("Browse & Book Classes"),
+                          Text("No workout plan assigned yet. Ask your trainer or create one.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.bold, fontSize: 14)),
+                          const SizedBox(height: 16),
+                          PrimaryButton(
+                            text: "Create Routine",
+                            onPressed: () => context.push('/member/workout'),
                           ),
                         ],
                       ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // Upcoming Classes Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SectionHeader(title: "Upcoming Bookings"),
-                  const SizedBox(height: 16),
-                  if (upcomingClasses.isNotEmpty)
-                    ...upcomingClasses.map((c) => _buildUpcomingRow(context, ref, c, member.id))
-                  else
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: Text("No upcoming bookings for the week", style: TextStyle(color: Colors.grey[600]))),
                     ),
                 ],
               ),
@@ -370,171 +359,14 @@ class MemberDashboardScreen extends ConsumerWidget {
     );
   }
 
-  bool _isUpcomingTime(String startTimeStr, DateTime now) {
-    try {
-      final format = DateFormat('hh:mm a');
-      final start = format.parse(startTimeStr);
-      final todayStart = DateTime(now.year, now.month, now.day, start.hour, start.minute);
-      return todayStart.isAfter(now);
-    } catch (_) {
-      return true;
-    }
-  }
-
-  Widget _buildTodayClassCard(BuildContext context, GymClassSession c, DateTime now) {
-    Color typeBg;
-    switch (c.category) {
-      case 'Yoga':
-        typeBg = Colors.teal;
-        break;
-      case 'HIIT':
-        typeBg = Colors.orange;
-        break;
-      case 'Zumba':
-        typeBg = Colors.pink;
-        break;
-      case 'CrossFit':
-        typeBg = Colors.red[700]!;
-        break;
-      default:
-        typeBg = Colors.blue;
-        break;
-    }
-
-    bool isDone = !_isUpcomingTime(c.startTime, now);
-
-    return Container(
-      width: 220,
-      margin: const EdgeInsets.only(right: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(height: 8, decoration: BoxDecoration(color: typeBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(16)))),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(color: typeBg.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-                      child: Text(c.category, style: TextStyle(color: typeBg, fontSize: 10, fontWeight: FontWeight.bold)),
-                    ),
-                    if (isDone)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                        child: const Text("Completed ✓", style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
-                      )
-                    else
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                        child: const Text("Upcoming", style: TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.bold)),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(c.className, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.schedule, size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 6),
-                    Text("${c.startTime} – ${c.endTime}", style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    CircleAvatar(radius: 10, backgroundColor: AppColors.primary.withValues(alpha: 0.1), child: const Icon(Icons.person, size: 12, color: AppColors.primary)),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(c.trainerName, style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.bold))),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUpcomingRow(BuildContext context, WidgetRef ref, GymClassSession c, String memberId) {
-    final dayStr = DateFormat('EEE').format(c.date).toUpperCase();
-    final numStr = DateFormat('dd').format(c.date);
-
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: AppColors.border)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Column(
-              children: [
-                Text(dayStr, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey[500])),
-                const SizedBox(height: 2),
-                Text(numStr, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.primary)),
-              ],
-            ),
-            const SizedBox(width: 16),
-            Container(width: 1, height: 40, color: AppColors.border),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(c.className, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
-                  const SizedBox(height: 4),
-                  Text("${c.startTime} · ${c.trainerName}", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close, color: Colors.red),
-              tooltip: "Cancel Booking",
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text("Cancel Booking"),
-                    content: Text("Are you sure you want to cancel your booking for ${c.className}?"),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("No")),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                        onPressed: () {
-                          ref.read(classesProvider.notifier).cancelBooking(c.id, memberId);
-                          Navigator.pop(ctx);
-                          SnackbarHelper.showError(context, "Cancelled ${c.className}");
-                        },
-                        child: const Text("Yes, Cancel"),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+  String _formatGoal(String goal) {
+    if (goal == 'muscle_gain') return "Muscle Gain";
+    if (goal == 'weight_loss') return "Weight Loss";
+    return "General Fitness";
   }
 
   Widget _buildMiniCalendarStrip(DateTime now, Set<DateTime> presentDates) {
-    // Current week (Monday to Sunday)
-    final int weekday = now.weekday; // 1=Mon .. 7=Sun
+    final int weekday = now.weekday;
     final startOfWeek = now.subtract(Duration(days: weekday - 1));
 
     final List<Widget> days = [];

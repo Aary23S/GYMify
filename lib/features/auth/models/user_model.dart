@@ -21,6 +21,7 @@ class UserModel {
   final String email;
   final UserRole role;
   final String gymName;
+  final String? currentBranch;
 
   const UserModel({
     required this.id,
@@ -28,6 +29,7 @@ class UserModel {
     required this.email,
     required this.role,
     required this.gymName,
+    this.currentBranch,
   });
 }
 
@@ -45,6 +47,7 @@ final dummyUsers = {
     email: 'trainer@gymflow.com',
     role: UserRole.trainer,
     gymName: 'GymFlow Fitness Center',
+    currentBranch: 'Branch A',
   ),
   UserRole.member: const UserModel(
     id: 'usr_member',

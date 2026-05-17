@@ -42,11 +42,11 @@ class _MainShellState extends ConsumerState<MainShell> {
     if (role == UserRole.member) {
       if (location == '/dashboard') {
         ref.read(bottomNavIndexProvider.notifier).state = 0;
-      } else if (location == '/member/classes') {
+      } else if (location == '/member/classes' || location == '/member/workout') {
         ref.read(bottomNavIndexProvider.notifier).state = 1;
       } else if (location == '/my-qr') {
         ref.read(bottomNavIndexProvider.notifier).state = 2;
-      } else if (location.startsWith('/members/')) {
+      } else if (location == '/my-profile' || location.startsWith('/members/')) {
         ref.read(bottomNavIndexProvider.notifier).state = 3;
       }
     } else if (role == UserRole.trainer) {
@@ -93,7 +93,7 @@ class _MainShellState extends ConsumerState<MainShell> {
 
       destinations = const [
         NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'),
-        NavigationDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month_rounded), label: 'Classes'),
+        NavigationDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month_rounded), label: 'My Activity'),
         NavigationDestination(icon: Icon(Icons.qr_code_outlined), selectedIcon: Icon(Icons.qr_code_rounded), label: 'My QR'),
         NavigationDestination(icon: Icon(Icons.person_outlined), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
       ];
@@ -107,7 +107,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     } else if (role == UserRole.trainer) {
       destinations = const [
         NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'),
-        NavigationDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people_rounded), label: 'My Members'),
+        NavigationDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people_rounded), label: 'My Trainees'),
         NavigationDestination(icon: Icon(Icons.check_circle_outline), selectedIcon: Icon(Icons.check_circle_rounded), label: 'Attendance'),
         NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings_rounded), label: 'Settings'),
       ];

@@ -53,6 +53,7 @@ class Member {
   final String? address;
   final String emergencyContactName;
   final String emergencyContactPhone;
+  final String branch;
 
   const Member({
     required this.id,
@@ -74,6 +75,7 @@ class Member {
     this.address,
     required this.emergencyContactName,
     required this.emergencyContactPhone,
+    required this.branch,
   });
 
   String get initials {

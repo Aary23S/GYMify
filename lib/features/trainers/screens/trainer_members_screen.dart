@@ -6,7 +6,6 @@ import '../../../core/widgets/empty_state_widget.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../members/models/member_model.dart';
 import '../../members/providers/members_provider.dart';
-import '../../attendance/providers/attendance_provider.dart';
 import '../../members/widgets/member_card.dart';
 
 class TrainerMembersScreen extends ConsumerStatefulWidget {
@@ -17,19 +16,19 @@ class TrainerMembersScreen extends ConsumerStatefulWidget {
 }
 
 class _TrainerMembersScreenState extends ConsumerState<TrainerMembersScreen> {
-  final _traineeSearchController = TextEditingController();
-  final _allSearchController = TextEditingController();
+  final _branchSearchController = TextEditingController();
+  final _otherSearchController = TextEditingController();
 
-  String _traineeSearchQuery = '';
-  String _allSearchQuery = '';
+  String _branchSearchQuery = '';
+  String _otherSearchQuery = '';
 
-  String _traineeFilter = 'All'; // All, Present Today, Absent Today, Expiring Soon
-  String _allFilter = 'All'; // All, Active, Expired
+  String _branchFilter = 'All'; // All, Active, Expired, Expiring Soon
+  String _otherFilter = 'All'; // All, Branch A, Branch B
 
   @override
   void dispose() {
-    _traineeSearchController.dispose();
-    _allSearchController.dispose();
+    _branchSearchController.dispose();
+    _otherSearchController.dispose();
     super.dispose();
   }
 
@@ -37,29 +36,28 @@ class _TrainerMembersScreenState extends ConsumerState<TrainerMembersScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final allMembers = ref.watch(membersProvider);
-    final attendanceNotifier = ref.read(attendanceProvider.notifier);
 
     final trainerUser = authState.user;
-    final trainerId = trainerUser?.id ?? 'trn_001';
-    final trainerName = trainerUser?.name ?? 'Sneha Kapoor';
+    final currentBranch = trainerUser?.currentBranch ?? 'Branch A';
 
-    // Total Assigned Trainees
-    final assignedTrainees = allMembers.where(
-      (m) => m.assignedTrainerId == trainerId || m.assignedTrainerName == trainerName,
-    ).toList();
+    // 1. Branch matching trainer
+    final branchMembers = allMembers.where((m) => m.branch == currentBranch).toList();
 
-    // Filtered Trainees (Tab 1)
-    final filteredTrainees = assignedTrainees.where((m) {
-      final matchesSearch = m.name.toLowerCase().contains(_traineeSearchQuery.toLowerCase()) ||
-          m.memberCode.toLowerCase().contains(_traineeSearchQuery.toLowerCase()) ||
-          m.phone.contains(_traineeSearchQuery);
+    // 2. Other branches
+    final otherBranchMembers = allMembers.where((m) => m.branch != currentBranch).toList();
+
+    // Filtered Branch Members (Tab 1)
+    final filteredBranchMembers = branchMembers.where((m) {
+      final matchesSearch = m.name.toLowerCase().contains(_branchSearchQuery.toLowerCase()) ||
+          m.memberCode.toLowerCase().contains(_branchSearchQuery.toLowerCase()) ||
+          m.phone.contains(_branchSearchQuery);
 
       bool matchesChip = true;
-      if (_traineeFilter == 'Present Today') {
-        matchesChip = attendanceNotifier.isCheckedInToday(m.id);
-      } else if (_traineeFilter == 'Absent Today') {
-        matchesChip = !attendanceNotifier.isCheckedInToday(m.id);
-      } else if (_traineeFilter == 'Expiring Soon') {
+      if (_branchFilter == 'Active') {
+        matchesChip = m.status == MemberStatus.active;
+      } else if (_branchFilter == 'Expired') {
+        matchesChip = m.status == MemberStatus.expired;
+      } else if (_branchFilter == 'Expiring Soon') {
         final days = m.planExpiry.difference(DateTime.now()).inDays;
         matchesChip = days >= 0 && days <= 7;
       }
@@ -67,17 +65,17 @@ class _TrainerMembersScreenState extends ConsumerState<TrainerMembersScreen> {
       return matchesSearch && matchesChip;
     }).toList();
 
-    // Filtered All Members (Tab 2)
-    final filteredAllMembers = allMembers.where((m) {
-      final matchesSearch = m.name.toLowerCase().contains(_allSearchQuery.toLowerCase()) ||
-          m.memberCode.toLowerCase().contains(_allSearchQuery.toLowerCase()) ||
-          m.phone.contains(_allSearchQuery);
+    // Filtered Other Branches (Tab 2)
+    final filteredOtherMembers = otherBranchMembers.where((m) {
+      final matchesSearch = m.name.toLowerCase().contains(_otherSearchQuery.toLowerCase()) ||
+          m.memberCode.toLowerCase().contains(_otherSearchQuery.toLowerCase()) ||
+          m.phone.contains(_otherSearchQuery);
 
       bool matchesChip = true;
-      if (_allFilter == 'Active') {
-        matchesChip = m.status == MemberStatus.active;
-      } else if (_allFilter == 'Expired') {
-        matchesChip = m.status == MemberStatus.expired;
+      if (_otherFilter == 'Branch A') {
+        matchesChip = m.branch == 'Branch A';
+      } else if (_otherFilter == 'Branch B') {
+        matchesChip = m.branch == 'Branch B';
       }
 
       return matchesSearch && matchesChip;
@@ -97,31 +95,31 @@ class _TrainerMembersScreenState extends ConsumerState<TrainerMembersScreen> {
             unselectedLabelColor: Colors.grey[500],
             labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             tabs: [
-              Tab(text: "My Trainees (${assignedTrainees.length})"),
-              Tab(text: "All Members (${allMembers.length})"),
+              Tab(text: "$currentBranch Members (${branchMembers.length})"),
+              Tab(text: "Other Branches (${otherBranchMembers.length})"),
             ],
           ),
         ),
         body: TabBarView(
           children: [
-            // TAB 1: MY TRAINEES
+            // TAB 1: BRANCH MATCHING TRAINER
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: TextField(
-                    controller: _traineeSearchController,
-                    onChanged: (val) => setState(() => _traineeSearchQuery = val),
+                    controller: _branchSearchController,
+                    onChanged: (val) => setState(() => _branchSearchQuery = val),
                     decoration: InputDecoration(
-                      hintText: "Search your assigned trainees...",
+                      hintText: "Search $currentBranch members...",
                       prefixIcon: const Icon(Icons.search, color: AppColors.primary),
-                      suffixIcon: _traineeSearchQuery.isNotEmpty
+                      suffixIcon: _branchSearchQuery.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear),
                               onPressed: () {
-                                _traineeSearchController.clear();
-                                setState(() => _traineeSearchQuery = '');
+                                _branchSearchController.clear();
+                                setState(() => _branchSearchQuery = '');
                               },
                             )
                           : null,
@@ -135,14 +133,14 @@ class _TrainerMembersScreenState extends ConsumerState<TrainerMembersScreen> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
-                    children: ['All', 'Present Today', 'Absent Today', 'Expiring Soon'].map((chip) {
-                      final isSel = _traineeFilter == chip;
+                    children: ['All', 'Active', 'Expired', 'Expiring Soon'].map((chip) {
+                      final isSel = _branchFilter == chip;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: FilterChip(
                           label: Text(chip),
                           selected: isSel,
-                          onSelected: (_) => setState(() => _traineeFilter = chip),
+                          onSelected: (_) => setState(() => _branchFilter = chip),
                           selectedColor: AppColors.primary,
                           checkmarkColor: Colors.white,
                           labelStyle: TextStyle(color: isSel ? Colors.white : AppColors.primary, fontWeight: isSel ? FontWeight.bold : FontWeight.normal),
@@ -157,29 +155,29 @@ class _TrainerMembersScreenState extends ConsumerState<TrainerMembersScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Text(
-                    "Showing ${filteredTrainees.length} trainees",
+                    "Showing ${filteredBranchMembers.length} members",
                     style: AppTextStyles.caption.copyWith(color: Colors.grey[600]),
                   ),
                 ),
                 Expanded(
-                  child: filteredTrainees.isEmpty
+                  child: filteredBranchMembers.isEmpty
                       ? EmptyStateWidget(
                           icon: Icons.people_outline,
-                          title: "No trainees found",
-                          subtitle: _traineeSearchQuery.isNotEmpty || _traineeFilter != 'All'
+                          title: "No members found",
+                          subtitle: _branchSearchQuery.isNotEmpty || _branchFilter != 'All'
                               ? "Try clearing your search or filter"
-                              : "You don't have any assigned trainees yet.",
+                              : "No members enrolled in $currentBranch.",
                         )
                       : ListView.separated(
-                          itemCount: filteredTrainees.length,
+                          itemCount: filteredBranchMembers.length,
                           separatorBuilder: (context, index) => const Divider(indent: 72, height: 1, color: AppColors.border),
-                          itemBuilder: (context, index) => MemberCard(member: filteredTrainees[index]),
+                          itemBuilder: (context, index) => MemberCard(member: filteredBranchMembers[index]),
                         ),
                 ),
               ],
             ),
 
-            // TAB 2: ALL MEMBERS
+            // TAB 2: OTHER BRANCHES
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -193,7 +191,7 @@ class _TrainerMembersScreenState extends ConsumerState<TrainerMembersScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          "Viewing all gym members. You can view profiles and send reminders.",
+                          "Viewing members from other branches (Read-only access).",
                           style: TextStyle(color: Colors.blue[900], fontSize: 12, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -203,17 +201,17 @@ class _TrainerMembersScreenState extends ConsumerState<TrainerMembersScreen> {
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: TextField(
-                    controller: _allSearchController,
-                    onChanged: (val) => setState(() => _allSearchQuery = val),
+                    controller: _otherSearchController,
+                    onChanged: (val) => setState(() => _otherSearchQuery = val),
                     decoration: InputDecoration(
-                      hintText: "Search all gym members...",
+                      hintText: "Search other branches...",
                       prefixIcon: const Icon(Icons.search, color: AppColors.primary),
-                      suffixIcon: _allSearchQuery.isNotEmpty
+                      suffixIcon: _otherSearchQuery.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear),
                               onPressed: () {
-                                _allSearchController.clear();
-                                setState(() => _allSearchQuery = '');
+                                _otherSearchController.clear();
+                                setState(() => _otherSearchQuery = '');
                               },
                             )
                           : null,
@@ -227,14 +225,14 @@ class _TrainerMembersScreenState extends ConsumerState<TrainerMembersScreen> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
-                    children: ['All', 'Active', 'Expired'].map((chip) {
-                      final isSel = _allFilter == chip;
+                    children: ['All', 'Branch A', 'Branch B'].map((chip) {
+                      final isSel = _otherFilter == chip;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: FilterChip(
                           label: Text(chip),
                           selected: isSel,
-                          onSelected: (_) => setState(() => _allFilter = chip),
+                          onSelected: (_) => setState(() => _otherFilter = chip),
                           selectedColor: AppColors.primary,
                           checkmarkColor: Colors.white,
                           labelStyle: TextStyle(color: isSel ? Colors.white : AppColors.primary, fontWeight: isSel ? FontWeight.bold : FontWeight.normal),
@@ -249,21 +247,21 @@ class _TrainerMembersScreenState extends ConsumerState<TrainerMembersScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Text(
-                    "Showing ${filteredAllMembers.length} members",
+                    "Showing ${filteredOtherMembers.length} members",
                     style: AppTextStyles.caption.copyWith(color: Colors.grey[600]),
                   ),
                 ),
                 Expanded(
-                  child: filteredAllMembers.isEmpty
+                  child: filteredOtherMembers.isEmpty
                       ? const EmptyStateWidget(
                           icon: Icons.people_outline,
                           title: "No members found",
                           subtitle: "Try adjusting your search or filters",
                         )
                       : ListView.separated(
-                          itemCount: filteredAllMembers.length,
+                          itemCount: filteredOtherMembers.length,
                           separatorBuilder: (context, index) => const Divider(indent: 72, height: 1, color: AppColors.border),
-                          itemBuilder: (context, index) => MemberCard(member: filteredAllMembers[index]),
+                          itemBuilder: (context, index) => MemberCard(member: filteredOtherMembers[index]),
                         ),
                 ),
               ],

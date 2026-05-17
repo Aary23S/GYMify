@@ -128,6 +128,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: '/my-profile',
+        name: 'my-profile',
+        pageBuilder: (context, state) => _fadeTransitionPage(state: state, child: const MainShell()),
+      ),
+      GoRoute(
         path: '/member/pay-fees',
         name: 'member-pay-fees',
         pageBuilder: (context, state) => _slideTransitionPage(state: state, child: const MemberPaymentScreen()),
@@ -146,6 +151,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/member/classes',
         name: 'member-classes',
+        pageBuilder: (context, state) => _fadeTransitionPage(state: state, child: const MainShell()),
+      ),
+      GoRoute(
+        path: '/member/workout',
+        name: 'member-workout',
         pageBuilder: (context, state) => _fadeTransitionPage(state: state, child: const MainShell()),
       ),
       GoRoute(

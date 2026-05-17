@@ -173,6 +173,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       bloodGroup: _bloodGroup == 'Unknown' ? null : _bloodGroup,
       emergencyContactName: _emergencyNameController.text.trim().isEmpty ? 'Emergency Contact' : _emergencyNameController.text.trim(),
       emergencyContactPhone: _emergencyPhoneController.text.trim().isEmpty ? _phoneController.text.trim() : _emergencyPhoneController.text.trim(),
+      branch: 'Branch A',
     );
 
     final newUserModel = UserModel(
@@ -181,6 +182,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       email: newMember.email,
       role: UserRole.member,
       gymName: 'GymFlow Fitness Center',
+      currentBranch: 'Branch A',
     );
 
     ref.read(membersProvider.notifier).addMember(newMember);

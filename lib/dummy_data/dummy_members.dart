@@ -20,6 +20,7 @@ final List<Member> dummyMembers = [
     address: 'Andheri West, Mumbai',
     emergencyContactName: 'Rajesh Sharma',
     emergencyContactPhone: '9876543211',
+    branch: 'Branch A',
   ),
   Member(
     id: '2',
@@ -40,6 +41,7 @@ final List<Member> dummyMembers = [
     address: 'Satellite, Ahmedabad',
     emergencyContactName: 'Dinesh Patel',
     emergencyContactPhone: '9123456780',
+    branch: 'Branch A',
   ),
   Member(
     id: '3',
@@ -60,6 +62,7 @@ final List<Member> dummyMembers = [
     address: 'Indiranagar, Bangalore',
     emergencyContactName: 'Suresh Gupta',
     emergencyContactPhone: '9988776654',
+    branch: 'Branch A',
   ),
   Member(
     id: '4',
@@ -80,6 +83,7 @@ final List<Member> dummyMembers = [
     address: 'Adyar, Chennai',
     emergencyContactName: 'Venkatesh Iyer',
     emergencyContactPhone: '9444556678',
+    branch: 'Branch A',
   ),
   Member(
     id: '5',
@@ -100,6 +104,7 @@ final List<Member> dummyMembers = [
     address: 'Malviya Nagar, Delhi',
     emergencyContactName: 'Karan Singh',
     emergencyContactPhone: '9000112234',
+    branch: 'Branch A',
   ),
   Member(
     id: '6',
@@ -120,6 +125,7 @@ final List<Member> dummyMembers = [
     address: 'Bandra West, Mumbai',
     emergencyContactName: 'Ravi Malhotra',
     emergencyContactPhone: '9555667789',
+    branch: 'Branch A',
   ),
   Member(
     id: '7',
@@ -140,6 +146,7 @@ final List<Member> dummyMembers = [
     address: 'Salt Lake, Kolkata',
     emergencyContactName: 'Meera Das',
     emergencyContactPhone: '9222334456',
+    branch: 'Branch A',
   ),
   Member(
     id: '8',
@@ -160,6 +167,7 @@ final List<Member> dummyMembers = [
     address: 'Juhu, Mumbai',
     emergencyContactName: 'Neelam Khattar',
     emergencyContactPhone: '9333445567',
+    branch: 'Branch A',
   ),
   Member(
     id: '9',
@@ -180,6 +188,7 @@ final List<Member> dummyMembers = [
     address: 'Cuffe Parade, Mumbai',
     emergencyContactName: 'Javed Akhtar',
     emergencyContactPhone: '9777889901',
+    branch: 'Branch A',
   ),
   Member(
     id: '10',
@@ -200,6 +209,7 @@ final List<Member> dummyMembers = [
     address: 'Worli, Mumbai',
     emergencyContactName: 'Salome Roy',
     emergencyContactPhone: '9666778890',
+    branch: 'Branch A',
   ),
   Member(
     id: '11',
@@ -220,6 +230,7 @@ final List<Member> dummyMembers = [
     address: 'Lokhandwala, Mumbai',
     emergencyContactName: 'Rahul Sanon',
     emergencyContactPhone: '9888990012',
+    branch: 'Branch A',
   ),
   Member(
     id: '12',
@@ -240,6 +251,7 @@ final List<Member> dummyMembers = [
     address: 'Juhu, Mumbai',
     emergencyContactName: 'David Dhawan',
     emergencyContactPhone: '9999001123',
+    branch: 'Branch A',
   ),
   Member(
     id: '13',
@@ -260,6 +272,7 @@ final List<Member> dummyMembers = [
     address: 'Amrita Shergill Marg, Delhi',
     emergencyContactName: 'Saif Ali Khan',
     emergencyContactPhone: '9111223345',
+    branch: 'Branch B',
   ),
   Member(
     id: '14',
@@ -280,6 +293,7 @@ final List<Member> dummyMembers = [
     address: 'Pali Hill, Mumbai',
     emergencyContactName: 'Rishi Kapoor',
     emergencyContactPhone: '9222445567',
+    branch: 'Branch B',
   ),
   Member(
     id: '15',
@@ -300,6 +314,7 @@ final List<Member> dummyMembers = [
     address: 'Prabhadevi, Mumbai',
     emergencyContactName: 'Prakash Padukone',
     emergencyContactPhone: '9333556678',
+    branch: 'Branch B',
   ),
   Member(
     id: '16',
@@ -320,6 +335,7 @@ final List<Member> dummyMembers = [
     address: 'Panchkula, Chandigarh',
     emergencyContactName: 'P. Khurrana',
     emergencyContactPhone: '9444667789',
+    branch: 'Branch B',
   ),
   Member(
     id: '17',
@@ -340,6 +356,7 @@ final List<Member> dummyMembers = [
     address: 'Juhu, Mumbai',
     emergencyContactName: 'Mahesh Bhatt',
     emergencyContactPhone: '9555778890',
+    branch: 'Branch B',
   ),
   Member(
     id: '18',
@@ -360,6 +377,7 @@ final List<Member> dummyMembers = [
     address: 'Andheri, Mumbai',
     emergencyContactName: 'Sham Kaushal',
     emergencyContactPhone: '9666889901',
+    branch: 'Branch B',
   ),
   Member(
     id: '19',
@@ -380,6 +398,7 @@ final List<Member> dummyMembers = [
     address: 'Ludhiana, Punjab',
     emergencyContactName: 'Dilmohan Pannu',
     emergencyContactPhone: '9777990012',
+    branch: 'Branch B',
   ),
   Member(
     id: '20',
@@ -400,5 +419,6 @@ final List<Member> dummyMembers = [
     address: 'Gurgaon, Haryana',
     emergencyContactName: 'Kamlesh Yadav',
     emergencyContactPhone: '9888001123',
+    branch: 'Branch B',
   ),
 ];
