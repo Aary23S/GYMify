@@ -15,6 +15,8 @@ import '../../classes/screens/member_classes_screen.dart';
 import '../../../core/providers/navigation_provider.dart';
 import 'owner_dashboard_screen.dart';
 import 'member_dashboard_screen.dart';
+import 'trainer_dashboard_screen.dart';
+import '../../trainers/screens/trainer_members_screen.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
@@ -111,8 +113,8 @@ class _MainShellState extends ConsumerState<MainShell> {
       ];
 
       screens = [
-        const OwnerDashboardScreen(),
-        const MembersListScreen(),
+        const TrainerDashboardScreen(),
+        const TrainerMembersScreen(),
         const AttendanceScreen(),
         const SettingsScreen(),
       ];

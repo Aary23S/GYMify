@@ -47,6 +47,7 @@ class Member {
   final MemberStatus status;
   final DateTime joinDate;
   final DateTime planExpiry;
+  final String? assignedTrainerId;
   final String? assignedTrainerName;
   final String? bloodGroup;
   final String? address;
@@ -67,6 +68,7 @@ class Member {
     required this.status,
     required this.joinDate,
     required this.planExpiry,
+    this.assignedTrainerId,
     this.assignedTrainerName,
     this.bloodGroup,
     this.address,

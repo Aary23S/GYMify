@@ -96,15 +96,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(height: 24),
                       Center(
                         child: TextButton(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Signup flow coming soon')),
-                            );
-                          },
+                          onPressed: () => context.push('/signup'),
                           child: RichText(
                             text: TextSpan(
-                              text: "New gym member? ",
+                              text: "New to GymFlow? ",
                               style: AppTextStyles.bodyMedium
                                   .copyWith(color: AppColors.textSecondary),
                               children: [

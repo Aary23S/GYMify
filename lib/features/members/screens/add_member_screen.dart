@@ -159,6 +159,7 @@ class _AddMemberScreenState extends ConsumerState<AddMemberScreen> {
         status: MemberStatus.active,
         joinDate: _joinDate,
         planExpiry: expiryDate,
+        assignedTrainerId: _assignedTrainer == 'None' ? null : (_assignedTrainer == 'Sneha Kapoor' ? 'usr_trainer' : 'trn_other'),
         assignedTrainerName:
             _assignedTrainer == 'None' ? null : _assignedTrainer,
         bloodGroup: _bloodGroup == 'Unknown' ? null : _bloodGroup,

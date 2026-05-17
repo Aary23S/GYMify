@@ -110,7 +110,7 @@ List<AttendanceRecord> generateDummyAttendance() {
     );
   }
 
-  for (int i = 5; i < 8; i++) {
+  for (int i = 5; i < 9; i++) {
     final m = membersInfo[i];
     final checkIn = DateTime(now.year, now.month, now.day, now.hour > 2 ? now.hour - 1 : now.hour, 10 * i % 60);
     records.add(

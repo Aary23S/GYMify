@@ -40,7 +40,7 @@ final dummyUsers = {
     gymName: 'GymFlow Fitness Center',
   ),
   UserRole.trainer: const UserModel(
-    id: 'usr_trainer',
+    id: 'trn_001',
     name: 'Sneha Kapoor',
     email: 'trainer@gymflow.com',
     role: UserRole.trainer,

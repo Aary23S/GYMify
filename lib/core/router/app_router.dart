@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/screens/splash_screen.dart';
 import '../../features/auth/screens/onboarding_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
+import '../../features/auth/screens/signup_screen.dart';
 import '../../features/auth/screens/otp_verify_screen.dart';
 import '../../features/dashboard/screens/main_shell.dart';
 import '../../features/members/screens/add_member_screen.dart';
@@ -132,10 +133,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           return QrScannerScreen(action: action);
         },
       ),
+      GoRoute(
+        path: '/signup',
+        name: 'signup',
+        builder: (context, state) => const SignupScreen(),
+      ),
     ],
     redirect: (context, state) {
       final authState = ref.read(authProvider);
-      final loggingIn = state.matchedLocation == '/login' || state.matchedLocation == '/otp-verify';
+      final loggingIn = state.matchedLocation == '/login' || state.matchedLocation == '/otp-verify' || state.matchedLocation == '/signup';
       final inSplash = state.matchedLocation == '/';
       final inOnboarding = state.matchedLocation == '/onboarding';
 

@@ -139,6 +139,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       user: null,
     );
   }
+
+  void loginAsNewMember(UserModel newUser) {
+    state = state.copyWith(
+      selectedRole: UserRole.member,
+      isLoggedIn: true,
+      user: newUser,
+    );
+  }
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
