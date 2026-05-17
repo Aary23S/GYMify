@@ -37,9 +37,11 @@ class AuthState {
     this.isLoading = false,
   });
 
+  UserRole get role => selectedRole;
+
   Set<AppPermission> get permissions {
     switch (selectedRole) {
-      case UserRole.superAdmin:
+      case UserRole.owner:
         return AppPermission.values.toSet();
       case UserRole.trainer:
         return {
@@ -85,7 +87,7 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier()
       : super(AuthState(
-          selectedRole: UserRole.superAdmin,
+          selectedRole: UserRole.owner,
           isLoggedIn: false,
         ));
 

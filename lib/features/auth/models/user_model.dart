@@ -1,11 +1,11 @@
 enum UserRole {
-  superAdmin,
+  owner,
   trainer,
   member;
 
   String get displayName {
     switch (this) {
-      case UserRole.superAdmin:
+      case UserRole.owner:
         return 'Owner';
       case UserRole.trainer:
         return 'Trainer';
@@ -32,25 +32,25 @@ class UserModel {
 }
 
 final dummyUsers = {
-  UserRole.superAdmin: const UserModel(
-    id: '1',
-    name: 'John Doe',
+  UserRole.owner: const UserModel(
+    id: 'usr_owner',
+    name: 'Rajesh Kumar',
     email: 'owner@gymflow.com',
-    role: UserRole.superAdmin,
-    gymName: 'Iron Paradise',
+    role: UserRole.owner,
+    gymName: 'GymFlow Fitness Center',
   ),
   UserRole.trainer: const UserModel(
-    id: '3',
-    name: 'Mike Ross',
+    id: 'usr_trainer',
+    name: 'Sneha Kapoor',
     email: 'trainer@gymflow.com',
     role: UserRole.trainer,
-    gymName: 'Iron Paradise',
+    gymName: 'GymFlow Fitness Center',
   ),
   UserRole.member: const UserModel(
-    id: '4',
-    name: 'Alex Hunter',
+    id: 'usr_member',
+    name: 'Arjun Sharma',
     email: 'member@gymflow.com',
     role: UserRole.member,
-    gymName: 'Iron Paradise',
+    gymName: 'GymFlow Fitness Center',
   ),
 };

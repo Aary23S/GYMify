@@ -86,6 +86,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           return MemberProfileScreen(memberId: memberId);
         },
       ),
+      GoRoute(
+        path: '/member/pay-fees',
+        name: 'member-pay-fees',
+        builder: (context, state) => const MainShell(),
+      ),
     ],
     redirect: (context, state) {
       final authState = ref.read(authProvider);
